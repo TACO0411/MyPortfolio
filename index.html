@@ -23,8 +23,8 @@
   --glow-blue: 0 0 20px rgba(126,184,247,0.15);
   --glow-indigo: 0 0 20px rgba(139,156,244,0.15);
 }
-html { scroll-behavior: smooth; font-size: 18px; }
-body { background:var(--bg); color:var(--text); font-family:'Noto Sans TC',sans-serif; font-weight:300; overflow-x:hidden; }
+html { scroll-behavior: smooth; font-size: 18px; overflow-x:hidden; max-width:100%; }
+body { background:var(--bg); color:var(--text); font-family:'Noto Sans TC',sans-serif; font-weight:300; overflow-x:hidden; max-width:100%; }
 
 /* ══ LOADING SCREEN ══ */
 #maximize-gate {
@@ -125,7 +125,7 @@ nav.visible { opacity:1; pointer-events:auto; }
 #intro-mobile { display:none; }
 @media (max-width:768px) {
   #intro-canvas, .intro-glow-ring, .intro-center { display:none; }
-  #intro-3d { height:auto; min-height:0; padding:5rem 1.5rem 3.5rem; }
+  #intro-3d { height:auto; min-height:0; padding:5rem 1.5rem 3.5rem; overflow:hidden; }
   #intro-mobile {
     display:block; position:relative; z-index:2;
   }
@@ -347,7 +347,8 @@ section { position:relative; z-index:1; }
 .awards-title { font-family:'JetBrains Mono',monospace; font-size:0.55rem; letter-spacing:0.13em; color:var(--blue); text-transform:uppercase; margin-bottom:1rem; }
 .award-row { display:flex; align-items:flex-start; gap:0.75rem; padding:0.6rem 0; border-bottom:1px solid rgba(126,184,247,0.06); font-size:0.82rem; color:var(--text); line-height:1.4; }
 .award-row:last-child { border-bottom:none; padding-bottom:0; }
-.award-name { color:var(--title-accent); font-weight:700; }
+.award-text { min-width:0; flex:1; }
+.award-name { color:var(--title-accent); font-weight:700; white-space:nowrap; }
 .award-tag { font-family:'JetBrains Mono',monospace; font-size:0.55rem; color:var(--indigo); border:1px solid rgba(139,156,244,0.3); padding:0.15rem 0.4rem; white-space:nowrap; flex-shrink:0; margin-top:0.1rem; }
 
 /* skills inside left col */
@@ -456,7 +457,13 @@ section { position:relative; z-index:1; }
 @media (max-width:768px) {
 
   .profile-row { flex-direction: column; }
+  .profile-text { height:auto; margin-top:1.5rem; align-items:center; }
   .profile-name, .profile-name-zh, .profile-name-role { text-align: center; }
+  .awards-inner { padding:1.5rem 1.25rem; }
+}
+@media (max-width:380px) {
+  /* very narrow phones: let award names wrap rather than risk overflow */
+  .award-name { white-space:normal; }
 }
 
 #featured { border-top:1px solid rgba(126,184,247,0.08); min-height: 130vh; display: flex; align-items: center; }
@@ -497,11 +504,10 @@ section { position:relative; z-index:1; }
 .spec-dot { width:4px; height:4px; border-radius:50%; background:var(--blue); flex-shrink:0; box-shadow:0 0 6px var(--blue); }
 
 #contact { border-top:1px solid rgba(126,184,247,0.08); background:var(--bg2); min-height: 60vh; display: flex; align-items: center; }
-.contact-layout { display:flex; flex-direction:column; gap:3rem; }
-.contact-heading { text-align:center; }
+.contact-layout { display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:center; }
+.contact-heading { text-align:left; }
 .contact-title { font-family:'Orbitron',monospace; font-size:clamp(2rem,5vw,4rem); font-weight:900; letter-spacing:0.05em; line-height:1.05; color:var(--text); }
 .contact-title span { color:var(--blue); }
-.contact-bottom-row { display:flex; align-items:flex-end; justify-content:space-between; gap:3rem; flex-wrap:wrap; }
 .contact-items { display:flex; flex-direction:column; }
 .contact-item { display:flex; align-items:center; gap:1.5rem; padding:1.25rem 1.5rem; border:1px solid var(--blue-border); border-bottom:none; text-decoration:none; transition:background 0.2s; position:relative; }
 .contact-item:last-child { border-bottom:1px solid var(--blue-border); }
@@ -593,7 +599,8 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
   .about-grid { grid-template-columns:1fr; }
   .projects-grid { grid-template-columns:1fr; }
   .featured-top { grid-template-columns:1fr; }
-  .contact-bottom-row { flex-direction:column; align-items:center; gap:2rem; }
+  .contact-layout { grid-template-columns:1fr; gap:2.5rem; }
+  .contact-heading { text-align:center; }
   footer { flex-direction:column; gap:0.5rem; padding:1.5rem; }
   .hud-corner { display:none; }
   /* carousel: 3D coverflow disabled on mobile (see update() in JS) —
@@ -720,9 +727,9 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
           <span class="panel-label">Awards.log</span>
           <div class="awards-inner">
             <div class="awards-title">Recognition &amp; Nominations</div>
-            <div class="award-row"><span class="award-tag">2026</span><span class="award-name">金典新秀設計獎</span> — 數位互動設計類</div>
-            <div class="award-row"><span class="award-tag">2026</span><span class="award-name">金點新秀贊助特別獎</span> 入圍</div>
-            <div class="award-row"><span class="award-tag">2026</span><span class="award-name">放視大賞</span> 複審 入圍</div>
+            <div class="award-row"><span class="award-tag">2026</span><span class="award-text"><span class="award-name">金典新秀設計獎</span> — 數位互動設計類</span></div>
+            <div class="award-row"><span class="award-tag">2026</span><span class="award-text"><span class="award-name">金點新秀贊助特別獎</span> 入圍</span></div>
+            <div class="award-row"><span class="award-tag">2026</span><span class="award-text"><span class="award-name">放視大賞</span> 複審入圍</span></div>
           </div>
         </div>
 
@@ -897,17 +904,10 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
       <div class="contact-heading">
         <div class="contact-title">LET'S <span>BUILD</span> WORLDS</div>
       </div>
-      <div class="contact-bottom-row">
-        <div class="contact-items reveal">
-          <a class="contact-item" href="mailto:wchen3326@gmail.com"><span class="contact-type">Email</span><span class="contact-val">wchen3326@gmail.com</span></a>
-          <a class="contact-item" href="tel:0983391577"><span class="contact-type">Phone</span><span class="contact-val">0983-391-577</span></a>
-        </div>
-        <div class="qr-widget">
-          <div class="qr-widget-label">GitHub（點擊跳轉）</div>
-          <a class="qr-widget-box" id="photo-github-qr" href="https://github.com/Devourar" target="_blank" rel="noopener noreferrer">
-            <div class="qr-widget-icon" data-photo-placeholder>&#9651;</div>
-          </a>
-        </div>
+      <div class="contact-items reveal">
+        <a class="contact-item" href="mailto:wchen3326@gmail.com"><span class="contact-type">Email</span><span class="contact-val">wchen3326@gmail.com</span></a>
+        <a class="contact-item" href="tel:0983391577"><span class="contact-type">Phone</span><span class="contact-val">0983-391-577</span></a>
+        <a class="contact-item" href="https://github.com/Devourar" target="_blank" rel="noopener noreferrer"><span class="contact-type">GitHub</span><span class="contact-val">github.com/Devourar</span></a>
       </div>
     </div>
   </div>
@@ -1044,7 +1044,6 @@ onGateOpen(function(){
   loadPhotoInto('#photo-featured-02',  'Images/Featured/featured-02.png', true);
   loadPhotoInto('#photo-featured-03',  'Images/Featured/featured-03.png', true);
   loadPhotoInto('#photo-featured-04',  'Images/Featured/featured-04.png', true);
-  loadPhotoInto('#photo-github-qr',    'Images/Profile/github-qr.png');
   loadPhotoInto('#photo-featured-01-qr', 'Images/Featured/featured-01-qr.png');
   loadPhotoInto('#photo-featured-02-qr', 'Images/Featured/featured-02-qr.png');
 });
