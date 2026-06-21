@@ -136,15 +136,15 @@ nav.visible { opacity:1; pointer-events:auto; }
     font-size:clamp(1.3rem,6vw,1.9rem) !important;
   }
   .intro-mobile-nodes {
-    display:grid; grid-template-columns:repeat(3,1fr); gap:1rem 0.85rem;
+    display:flex; flex-direction:column; align-items:center; gap:1rem;
     width:100%; max-width:380px;
   }
-  /* first 3 nodes (About/Archive/Gallery) form the top row; the last 2
-     (Intro/Contact) are centered on their own row below */
-  .intro-mobile-node:nth-child(4) { grid-column:1 / span 2; justify-self:end; }
-  .intro-mobile-node:nth-child(5) { grid-column:2 / span 2; justify-self:start; }
+  .intro-mobile-row {
+    display:flex; justify-content:center; gap:0.85rem; width:100%;
+  }
   .intro-mobile-node {
-    aspect-ratio:1; border-radius:50%;
+    width:clamp(86px,26vw,110px); height:clamp(86px,26vw,110px);
+    flex-shrink:0; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     text-decoration:none; color:#7eb8f7;
     font-family:'Rajdhani',sans-serif; font-size:0.85rem; font-weight:700;
@@ -456,7 +456,7 @@ section { position:relative; z-index:1; }
 @media (max-width:768px) {
 
   .profile-row { flex-direction: column; }
-  .profile-name, .profile-name-zh { text-align: center; }
+  .profile-name, .profile-name-zh, .profile-name-role { text-align: center; }
 }
 
 #featured { border-top:1px solid rgba(126,184,247,0.08); min-height: 130vh; display: flex; align-items: center; }
@@ -490,7 +490,6 @@ section { position:relative; z-index:1; }
 
 .featured-top { display:grid; grid-template-columns:1fr auto; gap:2rem; align-items:start; margin-bottom:2rem; padding-bottom:2rem; border-bottom:1px solid rgba(126,184,247,0.08); }
 .featured-title { font-family:'Orbitron',monospace; font-size:clamp(1.3rem,3vw,2rem); font-weight:700; letter-spacing:0.06em; color:var(--text); line-height:1.3; }
-.featured-sub { font-family:'JetBrains Mono',monospace; font-size:0.65rem; letter-spacing:0.13em; color:var(--blue); margin-top:0.5rem; text-transform:uppercase; }
 .featured-role-badge { font-family:'JetBrains Mono',monospace; font-size:0.6rem; letter-spacing:0.13em; padding:0.5rem 1rem; border:1px solid var(--indigo); color:var(--indigo); white-space:nowrap; text-transform:uppercase; box-shadow:var(--glow-indigo); }
 .featured-desc { font-size:0.88rem; line-height:1.95; color:var(--text); max-width:700px; margin-bottom:2rem; }
 .featured-specs { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0.75rem; }
@@ -597,6 +596,19 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
   .contact-bottom-row { flex-direction:column; align-items:center; gap:2rem; }
   footer { flex-direction:column; gap:0.5rem; padding:1.5rem; }
   .hud-corner { display:none; }
+  /* carousel: 3D coverflow disabled on mobile (see update() in JS) —
+     perspective serves no purpose without the rotateY/translateZ effect
+     and can otherwise cause unexpected rendering artifacts */
+  .featured-track-wrap { perspective:none; }
+  .qr-widget--floating.qr-widget--sm .qr-widget-box { width:56px; height:56px; }
+  .qr-widget--floating.qr-widget--sm .qr-widget-icon { font-size:0.85rem; }
+  .qr-widget--floating.qr-widget--sm .qr-widget-label { font-size:0.46rem; padding:0.12rem 0.32rem; }
+  .qr-widget--floating { bottom:0.5rem; right:0.5rem; gap:0.25rem; }
+  .featured-img { aspect-ratio:16/9; min-height:0; }
+  #featured .section-inner { padding-left:0.75rem; padding-right:0.75rem; }
+  .featured-nav-btn { display:none; }
+  .featured-carousel { gap:0; }
+  .featured-panel { padding:1.1rem; }
 }
 </style>
 </head>
@@ -662,11 +674,15 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
         <span id="intro-mobile-name-textcontent">Break the reality<br>Explore the future.</span>
       </div>
       <div class="intro-mobile-nodes">
-        <a class="intro-mobile-node" href="#about" data-label="About"><span>About</span></a>
-        <a class="intro-mobile-node" href="#featured" data-label="Archive"><span>Archive</span></a>
-        <a class="intro-mobile-node" href="#archive" data-label="Gallery"><span>Gallery</span></a>
-        <a class="intro-mobile-node" href="#profile-intro" data-label="Intro"><span>Intro</span></a>
-        <a class="intro-mobile-node" href="#contact" data-label="Contact"><span>Contact</span></a>
+        <div class="intro-mobile-row intro-mobile-row--top">
+          <a class="intro-mobile-node" href="#about" data-label="About"><span>About</span></a>
+          <a class="intro-mobile-node" href="#featured" data-label="Archive"><span>Archive</span></a>
+          <a class="intro-mobile-node" href="#archive" data-label="Gallery"><span>Gallery</span></a>
+        </div>
+        <div class="intro-mobile-row intro-mobile-row--bottom">
+          <a class="intro-mobile-node" href="#profile-intro" data-label="Intro"><span>Intro</span></a>
+          <a class="intro-mobile-node" href="#contact" data-label="Contact"><span>Contact</span></a>
+        </div>
       </div>
     </div>
   </div>
@@ -750,7 +766,7 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
           <div class="panel featured-panel">
             <span class="panel-label">Capstone.exe</span>
             <div class="featured-top">
-              <div><div class="featured-title">混合實境 DJ / VJ<br>整合式互動系統</div><div class="featured-sub">// MR-integrated audiovisual stage system — 2026</div></div>
+              <div><div class="featured-title">混合實境 DJ / VJ<br>整合式互動系統</div></div>
               <div class="featured-role-badge">Team Leader</div>
             </div>
             <div class="featured-img" id="photo-featured-01">
@@ -778,7 +794,7 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
           <div class="panel featured-panel">
             <span class="panel-label">PRJ_001.exe</span>
             <div class="featured-top">
-              <div><div class="featured-title">超聲體：人魚重奏</div><div class="featured-sub">// Interactive Performance</div></div>
+              <div><div class="featured-title">超聲體：人魚重奏</div></div>
               <div class="featured-role-badge">VFX Lead</div>
             </div>
             <div class="featured-img" id="photo-featured-02">
@@ -802,7 +818,7 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
           <div class="panel featured-panel">
             <span class="panel-label">PRJ_002.exe</span>
             <div class="featured-top">
-              <div><div class="featured-title">PETROLLER</div><div class="featured-sub">// Haptic Virtual Pet</div></div>
+              <div><div class="featured-title">PETROLLER</div></div>
               <div class="featured-role-badge">3D &amp; Animation</div>
             </div>
             <div class="featured-img" id="photo-featured-03">
@@ -821,7 +837,7 @@ footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; displ
           <div class="panel featured-panel">
             <span class="panel-label">PRJ_003.exe</span>
             <div class="featured-top">
-              <div><div class="featured-title">北醫病人復健遊戲</div><div class="featured-sub">// VR Rehabilitation Game</div></div>
+              <div><div class="featured-title">北醫病人復健遊戲</div></div>
               <div class="featured-role-badge">3D &amp; Scene Design</div>
             </div>
             <div class="featured-img" id="photo-featured-04">
@@ -930,7 +946,9 @@ function onGateOpen(fn) {
   const gateEl = document.getElementById('maximize-gate');
   if (!gateEl) { window.__siteGateOpen = true; return; }
 
-  if (!MAXIMIZE_GATE_ENABLED) {
+  if (!MAXIMIZE_GATE_ENABLED || isMobileLayout()) {
+    // mobile browsers have no real "maximize" concept — skip the check
+    // entirely rather than risk false-locking the page
     gateEl.style.display = 'none';
     document.body.classList.remove('gate-locked');
     window.__siteGateOpen = true;
@@ -1179,9 +1197,30 @@ onGateOpen(function(){
   }
 
   function update() {
+    const mobile = isMobileLayout();
     cards.forEach((card, i) => {
       const offset = i - current; // -2,-1,0,1,2...
       const abs = Math.abs(offset);
+
+      if (mobile) {
+        // simplified flat slide on mobile — no 3D rotation/scale/depth,
+        // since the coverflow perspective math distorts badly on narrow
+        // viewports (cards end up looking stretched/squashed)
+        if (abs > 1) {
+          card.style.opacity = '0';
+          card.style.pointerEvents = 'none';
+          card.style.transform = `translateX(${offset > 0 ? 100 : -100}%)`;
+          card.style.zIndex = '0';
+          card.style.filter = 'none';
+          return;
+        }
+        card.style.transform = `translateX(${offset * 100}%)`;
+        card.style.opacity = abs === 0 ? '1' : '0';
+        card.style.zIndex = String(10 - abs);
+        card.style.filter = 'none';
+        card.style.pointerEvents = abs === 0 ? 'auto' : 'none';
+        return;
+      }
 
       if (abs > 2) {
         // far off-screen cards: fully hidden, no need to render visibly
@@ -1225,6 +1264,23 @@ onGateOpen(function(){
   });
   window.addEventListener('resize', resizeTrack);
   track.addEventListener('photo-fit-resized', resizeTrack);
+
+  // ── swipe support (mobile) — left swipe advances, right swipe goes
+  // back, mirroring the prev/next buttons. Only fires on a sufficiently
+  // horizontal, sufficiently long drag so normal vertical page scrolling
+  // isn't accidentally hijacked.
+  let touchStartX = 0, touchStartY = 0;
+  track.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  track.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return; // too short or more vertical than horizontal — ignore
+    if (dx < 0 && current < totalCards - 1) { current++; update(); }
+    else if (dx > 0 && current > 0) { current--; update(); }
+  }, { passive: true });
 
   update();
 });
