@@ -1,0 +1,2570 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>陳維漢 — Mixed Reality Artist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500&family=JetBrains+Mono:wght@400;500;600&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue: #7eb8f7;
+  --blue-dim: rgba(126,184,247,0.12);
+  --blue-border: rgba(126,184,247,0.25);
+  --indigo: #8b9cf4;
+  --title-accent: #94c7ff; /* brighter, more saturated, purer blue — used specifically for section title highlights */
+  --indigo-dim: rgba(139,156,244,0.1);
+  --bg: #02030a;
+  --bg2: #070b18;
+  --text: #eaf0f9;
+  --text-dim: #808aa0;
+  --text-mid: #9babc9;
+  --glow-blue: 0 0 20px rgba(126,184,247,0.15);
+  --glow-indigo: 0 0 20px rgba(139,156,244,0.15);
+}
+html { scroll-behavior: smooth; font-size: 18px; }
+body { background:var(--bg); color:var(--text); font-family:'Noto Sans TC',sans-serif; font-weight:300; overflow-x:hidden; }
+
+/* ══ LOADING SCREEN ══ */
+#maximize-gate {
+  position: fixed; inset: 0; z-index: 20000;
+  display: none; /* JS sets to flex when the window isn't maximized */
+  align-items: center; justify-content: center;
+  background: #02030a;
+  padding: 2rem; text-align: center;
+}
+.maximize-gate-text {
+  font-family: 'Orbitron', monospace; font-weight: 700;
+  font-size: clamp(1.1rem, 3vw, 1.8rem); letter-spacing: 0.08em;
+  color: #d5e1f3; max-width: 600px; line-height: 1.6;
+}
+body.gate-locked { overflow: hidden; height: 100vh; }
+#loading-screen {
+  position: fixed; inset: 0; z-index: 10000;
+  display: none; align-items: center; justify-content: center;
+}
+#loading-glitch-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none;
+}
+.loading-scanlines {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(to bottom,
+    rgba(126,184,247,0.06) 0px, rgba(126,184,247,0.06) 1px,
+    transparent 1px, transparent 3px);
+  animation: loadingScanlineScroll 1.4s linear infinite;
+}
+.loading-text-wrap {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 1.4rem;
+}
+.loading-text {
+  position: relative; z-index: 1;
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.5rem, 3.6vw, 2.4rem);
+  font-weight: 700; letter-spacing: 0.15em;
+  color: var(--blue); text-transform: uppercase;
+  text-shadow: 0 0 30px rgba(126,184,247,0.4);
+}
+.loading-progress-track {
+  width: clamp(220px, 28vw, 340px); height: 2px;
+  background: rgba(126,184,247,0.15);
+  position: relative; overflow: hidden;
+}
+.loading-progress-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
+  background: var(--blue);
+  box-shadow: 0 0 8px rgba(126,184,247,0.7);
+  transition: width 0.05s linear;
+}
+.loading-cursor {
+  display: inline-block;
+  animation: loadingBlink 0.8s step-end infinite;
+}
+@keyframes loadingBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+body::after { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(126,184,247,0.018) 2px,rgba(126,184,247,0.018) 4px); pointer-events:none; z-index:1000; }
+.screen-edge-glow {
+  position: fixed; inset: 0; z-index: 1001; pointer-events: none;
+  opacity: 0; transition: opacity 0.5s ease;
+  background:
+    radial-gradient(ellipse 50% 40% at 0% 0%, rgba(126,184,247,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, rgba(126,184,247,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 0% 100%, rgba(126,184,247,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, rgba(126,184,247,0.14) 0%, transparent 60%);
+  box-shadow: inset 0 0 120px rgba(126,184,247,0.12);
+}
+body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(126,184,247,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(126,184,247,0.04) 1px,transparent 1px); background-size:48px 48px; pointer-events:none; z-index:0; }
+
+
+nav { position:fixed; top:0; left:0; right:0; z-index:500; display:flex; justify-content:space-between; align-items:center; padding:0 3rem; height:56px; border-bottom:1px solid var(--blue-border); background:rgba(4,6,15,0.85); backdrop-filter:blur(16px); opacity:0; pointer-events:none; transition:opacity 0.4s ease; }
+nav.visible { opacity:1; pointer-events:auto; }
+.nav-logo { font-family:'Orbitron',monospace; font-size:0.75rem; font-weight:700; letter-spacing:0.13em; color:var(--blue); text-decoration:none; text-shadow:var(--glow-blue); }
+.nav-links { display:flex; list-style:none; }
+.nav-links li a { display:block; padding:0 1.25rem; height:56px; line-height:56px; font-family:'JetBrains Mono',monospace; font-size:0.62rem; letter-spacing:0.13em; text-transform:uppercase; color:var(--text-dim); text-decoration:none; border-left:1px solid var(--blue-border); transition:all 0.2s; position:relative; }
+.nav-links li a::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:var(--blue); transform:scaleX(0); transition:transform 0.2s; }
+.nav-links li a:hover { color:var(--blue); background:var(--blue-dim); }
+.nav-links li a:hover::after { transform:scaleX(1); }
+
+.hud-corner { position:fixed; width:40px; height:40px; pointer-events:none; z-index:200; }
+.hud-corner.tl { top:64px; left:16px; border-top:1px solid var(--blue-border); border-left:1px solid var(--blue-border); }
+.hud-corner.tr { top:64px; right:16px; border-top:1px solid var(--blue-border); border-right:1px solid var(--blue-border); }
+.hud-corner.bl { bottom:16px; left:16px; border-bottom:1px solid var(--blue-border); border-left:1px solid var(--blue-border); }
+.hud-corner.br { bottom:16px; right:16px; border-bottom:1px solid var(--blue-border); border-right:1px solid var(--blue-border); }
+
+/* ══ 3D INTRO SECTION ══ */
+#intro-3d {
+  position: relative; width: 100%; height: 100vh; min-height: 920px;
+  background: var(--bg); overflow: visible; z-index: 1;
+}
+#intro-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; clip-path: inset(0); }
+
+/* ══ MOBILE flat layout — replaces the 3D scene entirely below 768px.
+   Hidden by default (desktop shows the Three.js canvas instead); the
+   768px breakpoint flips visibility the other way around. ══ */
+#intro-mobile { display:none; }
+@media (max-width:768px) {
+  #intro-canvas, .intro-glow-ring, .intro-center { display:none; }
+  #intro-3d { height:auto; min-height:0; padding:5rem 1.5rem 3.5rem; }
+  #intro-mobile {
+    display:block; position:relative; z-index:2;
+  }
+  #intro-mobile-canvas { position:absolute; inset:-5rem -1.5rem; width:calc(100% + 3rem); height:calc(100% + 8.5rem); z-index:0; }
+  .intro-mobile-content { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; }
+  .intro-mobile-tagline {
+    position:static; text-align:center; margin-bottom:3rem;
+    font-size:clamp(1.3rem,6vw,1.9rem) !important;
+  }
+  .intro-mobile-nodes {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1rem 0.85rem;
+    width:100%; max-width:380px;
+  }
+  /* first 3 nodes (About/Archive/Gallery) form the top row; the last 2
+     (Intro/Contact) are centered on their own row below */
+  .intro-mobile-node:nth-child(4) { grid-column:1 / span 2; justify-self:end; }
+  .intro-mobile-node:nth-child(5) { grid-column:2 / span 2; justify-self:start; }
+  .intro-mobile-node {
+    aspect-ratio:1; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    text-decoration:none; color:#7eb8f7;
+    font-family:'Rajdhani',sans-serif; font-size:0.85rem; font-weight:700;
+    letter-spacing:0.1em; text-transform:uppercase; text-align:center;
+    border:1px solid rgba(126,184,247,0.35);
+    background:
+      repeating-linear-gradient(to bottom, rgba(126,184,247,0.14) 0px, rgba(126,184,247,0.14) 2px, transparent 2px, transparent 5px),
+      #04060f;
+    box-shadow: inset 0 0 16px rgba(126,184,247,0.18);
+    transition: border-color 0.2s ease, transform 0.15s ease;
+  }
+  .intro-mobile-node:active { border-color:var(--blue); transform:scale(0.96); }
+}
+/* ══ PROFILE INTRO — name + avatar, standalone section before the 3D star map ══ */
+#profile-intro {
+  position: relative; width: 100%; height: calc(68.85vh + 180px); min-height: 694px;
+  background: #030408; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 2rem;
+  overflow: visible;
+}
+#profile-intro::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -125px;
+  height: 250px; z-index: 10; pointer-events: none;
+  /* Two independent curves:
+       - HUE: solid #030408 through 30%, then transitions toward the
+         starfield's color (#02030a) — fully opaque the whole time.
+       - OPACITY: stays fully opaque through 55%, then fades to fully
+         transparent by 100%.
+     Since these start at different points (30% vs 55%), they're expressed
+     as separate stops: the color finishes transitioning to #02030a-toned
+     (but still opaque) by 55% when the opacity fade begins, so the two
+     curves don't conflict. */
+  background: linear-gradient(to bottom,
+    #030408 0%,
+    #030408 30%,
+    #02030a 55%,
+    rgba(2,3,10,0) 100%);
+}
+.profile-row {
+  position: relative; z-index: 3;
+  display: flex; align-items: center; justify-content: center;
+  gap: clamp(2rem, 5vw, 4rem); flex-wrap: wrap;
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.profile-avatar {
+  width: clamp(260px, 28vw, 360px); height: clamp(260px, 28vw, 360px);
+  border-radius: 50%; border: 1px solid var(--blue-border);
+  background: rgba(126,184,247,0.03);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; flex-shrink: 0;
+}
+.profile-avatar::before {
+  content: ''; position: absolute; inset: -8px; border-radius: 50%;
+  border: 1px solid rgba(126,184,247,0.15);
+}
+.profile-avatar-icon { font-size: 3.4rem; color: var(--blue-border); line-height: 1; }
+.profile-avatar-hint {
+  position: absolute; bottom: -1.8rem; left: 50%; transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.55rem;
+  letter-spacing: 0.15em; color: var(--text-dim); text-transform: uppercase;
+  white-space: nowrap;
+}
+.profile-text {
+  height: clamp(260px, 28vw, 360px); /* matches .profile-avatar's height exactly */
+  display: flex; flex-direction: column; justify-content: center;
+}
+.profile-name {
+  font-family: 'Orbitron', monospace; font-weight: 900;
+  font-size: clamp(2.311rem, 6.2vw, 4.089rem); letter-spacing: 0.06em;
+  color: #fff; text-align: left; line-height: 1.1;
+  text-shadow: 0 0 60px rgba(126,184,247,0.2);
+}
+.profile-name-zh {
+  font-family: 'Noto Sans TC', sans-serif; font-weight: 700;
+  font-size: clamp(1.422rem, 3.2vw, 1.956rem); letter-spacing: 0.05em;
+  color: #fff; margin-top: 0.3rem; text-align: left;
+}
+.profile-name-role {
+  font-family: 'Noto Sans TC', sans-serif; font-weight: 700;
+  font-size: clamp(1.05rem, 2vw, 1.3rem); letter-spacing: 0.15em;
+  color: var(--title-accent); margin-top: 1rem; text-align: left;
+}
+/* extends below the section, fading the black background into the next section
+   purely a static visual blend — not an animation */
+.intro-fade-extend {
+  position: absolute; left: 0; right: 0; bottom: -320px;
+  height: 320px; z-index: 40; pointer-events: none;
+  background: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.75) 30%, rgba(0,0,0,0.35) 65%, rgba(0,0,0,0) 100%);
+}
+.intro-glow-ring {
+  position: absolute; z-index: 2; left: 50%; top: 50%;
+  transform: translate(-50%,-50%);
+  width: min(60vw,60vh); height: min(60vw,60vh);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(126,184,247,0.04) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glowPulse 4s ease-in-out infinite;
+}
+@keyframes glowPulse { 0%,100%{opacity:0.6} 50%{opacity:1} }
+@keyframes scanlineScroll { from { background-position: 0 0, 0 0; } to { background-position: 0 -5px, 0 0; } }
+@keyframes loadingScanlineScroll { from { background-position: 0 0; } to { background-position: 0 -3px; } }
+.intro-center {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: flex-start;
+  text-align: left; pointer-events: none;
+  padding-left: 9rem;
+  padding-top: 42vh; /* fixed anchor — keeps the title's top edge stable regardless of how many lines it wraps to */
+}
+.intro-name {
+  position: relative;
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(1.511rem, 4vw, 3.022rem);
+  font-weight: 900; letter-spacing: 0.06em;
+  color: #fff; line-height: 1.3;
+  text-shadow: 0 0 60px rgba(126,184,247,0.2);
+  cursor: pointer; pointer-events: auto; user-select: none;
+  transition: opacity 0.25s ease;
+  max-width: 95vw;
+  opacity: 0; /* hidden by default — JS reveals it via the glitch effect on load */
+}
+.intro-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--title-accent);
+  margin-top: 0.9rem;
+  opacity: 0; /* hidden by default, shown together with .intro-name via JS */
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.intro-name-noise {
+  position: absolute; inset: -16px;
+  z-index: 6; pointer-events: none;
+  opacity: 0; mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch' result='t'/%3E%3CfeColorMatrix in='t' type='matrix' values='0 0 0 0 0.5  0 0 0 0 0.75  0 0 0 0 1  0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+}
+.intro-role {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(0.75rem, 1.4vw, 1.05rem);
+  font-weight: 600;
+  letter-spacing: 0.3em; color: var(--blue);
+  text-transform: uppercase; margin-top: 0.6rem;
+  animation: fadeUp 1s 0.65s ease both;
+}
+.intro-scroll {
+  position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%);
+  z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 0.25em; color: var(--text-dim);
+  text-transform: uppercase;
+  animation: fadeUp 1s 1.2s ease both;
+  transition: opacity 0.3s ease;
+}
+.intro-scroll-line {
+  width: 1px; height: 28px;
+  background: linear-gradient(to bottom, var(--blue-border), transparent);
+  position: relative; overflow: hidden;
+}
+.intro-scroll-line::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--blue);
+  animation: drip 1.5s ease-in-out infinite;
+}
+@keyframes drip { 0%{transform:translateY(-100%)} 100%{transform:translateY(100%)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+
+section { position:relative; z-index:1; }
+.section-inner { max-width:1100px; margin:0 auto; padding:6rem 4rem; }
+.section-header { margin-bottom:3rem; }
+#featured .section-header { text-align:center; }
+.section-id { font-family:'JetBrains Mono',monospace; font-size:0.58rem; letter-spacing:0.22em; color:var(--text-dim); text-transform:uppercase; margin-bottom:0.5rem; }
+.section-title { font-family:'Orbitron',monospace; font-size:clamp(1.6rem,3.5vw,2.8rem); font-weight:700; letter-spacing:0.08em; color:var(--text); }
+.section-title span { color:var(--title-accent); }
+.panel { border:1px solid var(--blue-border); background:rgba(7,11,24,0.6); backdrop-filter:blur(8px); position:relative; }
+/* Project Archive cards combine this panel style with 3D transforms
+   (rotateY/translateZ) in the coverflow carousel — backdrop-filter blur
+   recalculated every frame alongside 3D compositing is expensive and was
+   causing stutter when scrolling into this section, so it's disabled
+   here in favor of a slightly more opaque flat background instead */
+.featured-panel { background:#0b1020; backdrop-filter:none; }
+.panel::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,var(--blue),var(--indigo),transparent); }
+.panel-label { position:absolute; top:-0.55rem; left:1.5rem; font-family:'JetBrains Mono',monospace; font-size:0.55rem; letter-spacing:0.16em; background:var(--bg); padding:0 0.5rem; color:var(--blue); text-transform:uppercase; }
+
+#about { min-height: 130vh; display: flex; align-items: center; }
+.about-cols { display:grid; grid-template-columns:1fr; gap:1.5rem; align-items:stretch; }
+
+/* LEFT column — stacked panels */
+.about-left { display:flex; flex-direction:column; gap:1.5rem; }
+
+.about-text-panel { padding:2rem; }
+.about-text-panel p { font-size:0.88rem; line-height:1.95; color:var(--text); margin-bottom:1rem; }
+.about-text-panel p:last-child { margin-bottom:0; }
+.about-text-panel strong { color:var(--blue); font-weight:500; }
+
+/* awards inside left col */
+.awards-inner { padding:1.75rem 2rem; }
+.awards-title { font-family:'JetBrains Mono',monospace; font-size:0.55rem; letter-spacing:0.13em; color:var(--blue); text-transform:uppercase; margin-bottom:1rem; }
+.award-row { display:flex; align-items:flex-start; gap:0.75rem; padding:0.6rem 0; border-bottom:1px solid rgba(126,184,247,0.06); font-size:0.82rem; color:var(--text); line-height:1.4; }
+.award-row:last-child { border-bottom:none; padding-bottom:0; }
+.award-name { color:var(--title-accent); font-weight:700; }
+.award-tag { font-family:'JetBrains Mono',monospace; font-size:0.55rem; color:var(--indigo); border:1px solid rgba(139,156,244,0.3); padding:0.15rem 0.4rem; white-space:nowrap; flex-shrink:0; margin-top:0.1rem; }
+
+/* skills inside left col */
+.skills-inner { padding:2rem; }
+.skill-group { margin-bottom:1.5rem; }
+.skill-group:last-child { margin-bottom:0; }
+.skill-group-label { font-family:'JetBrains Mono',monospace; font-size:0.55rem; letter-spacing:0.13em; color:var(--text-dim); text-transform:uppercase; margin-bottom:0.65rem; display:flex; align-items:center; gap:0.5rem; }
+.skill-group-label::before { content:''; display:block; width:16px; height:1px; background:var(--indigo); }
+.skill-chips { display:flex; flex-wrap:wrap; gap:0.4rem; }
+.chip { padding:0.25rem 0.7rem; border:1px solid rgba(139,156,244,0.3); font-family:'JetBrains Mono',monospace; font-size:0.65rem; letter-spacing:0.08em; color:var(--indigo); background:var(--indigo-dim); transition:all 0.2s; }
+.chip:hover { border-color:var(--indigo); background:rgba(139,156,244,0.18); box-shadow:0 0 10px rgba(139,156,244,0.15); }
+
+/* image placeholder — featured / graduation project */
+.featured-img {
+  width:100%; min-height:280px;
+  background:rgba(126,184,247,0.04);
+  border:1px solid var(--blue-border);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0.6rem; margin-bottom:2rem; position:relative; overflow:hidden;
+}
+.featured-img::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,var(--blue),var(--indigo),transparent);
+}
+.featured-img::after {
+  content:''; position:absolute; bottom:0; right:0;
+  width:20px; height:20px;
+  border-bottom:1px solid var(--blue-border); border-right:1px solid var(--blue-border);
+}
+.featured-img-icon { font-size:2rem; color:var(--blue-border); line-height:1; }
+.featured-img-label {
+  font-family:'JetBrains Mono',monospace; font-size:0.58rem;
+  letter-spacing:0.13em; color:var(--text-dim); text-transform:uppercase;
+}
+
+/* ══ ARCHIVE TIMELINE — 歷年作品 ══ */
+#archive { border-top:1px solid rgba(126,184,247,0.08); min-height: 100vh; display: flex; align-items: center; }
+/* ── archive: grouped Pinterest-style masonry, grouped by year ── */
+
+.archive-group { margin-bottom:3rem; }
+.archive-group-title {
+  font-family:'Orbitron',monospace; font-size:1.3rem; font-weight:700;
+  color:var(--text); letter-spacing:0.03em; margin-bottom:1.2rem;
+}
+.archive-masonry { column-count:3; column-gap:1.25rem; }
+.archive-card {
+  break-inside:avoid; margin-bottom:1.25rem; position:relative;
+  border:1px solid rgba(126,184,247,0.12); background:rgba(126,184,247,0.02);
+  overflow:hidden; cursor:pointer; transition:opacity 0.3s ease, transform 0.3s ease, border-color 0.25s ease;
+}
+.archive-card:hover { border-color:rgba(126,184,247,0.4); transform:translateY(-3px); }
+.archive-card-img {
+  width:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0.5rem; background:linear-gradient(160deg, rgba(126,184,247,0.06), rgba(139,156,244,0.03));
+  color:var(--blue-border); position:relative;
+}
+.archive-card-img-icon { font-size:1.8rem; line-height:1; }
+.archive-card-img-label {
+  font-family:'JetBrains Mono',monospace; font-size:0.5rem; letter-spacing:0.1em;
+  color:var(--text-dim); text-transform:uppercase;
+}
+.archive-empty-msg {
+  font-family:'JetBrains Mono',monospace; font-size:0.7rem; letter-spacing:0.05em;
+  color:var(--text-dim); text-align:center; padding:3rem 0;
+}
+.archive-full-link {
+  display:block; text-align:center; margin-top:3rem;
+  font-family:'Orbitron',monospace; font-size:1.3rem; font-weight:700; letter-spacing:0.06em;
+  color:var(--title-accent); text-decoration:none;
+  border-bottom:1px solid transparent; transition:border-color 0.2s ease, opacity 0.2s ease;
+  padding-bottom:0.3rem;
+}
+.archive-full-link:hover { border-bottom-color:var(--title-accent); opacity:0.85; }
+.archive-card { cursor:pointer; }
+
+/* ── Gallery lightbox — click a card to view its photo enlarged ── */
+#gallery-lightbox {
+  position:fixed; inset:0; z-index:21000;
+  display:none; align-items:center; justify-content:center;
+  background:rgba(2,3,10,0.92);
+  padding:4rem 2rem;
+  opacity:0; transition:opacity 0.25s ease;
+}
+#gallery-lightbox.open { display:flex; opacity:1; }
+#gallery-lightbox-img {
+  max-width:90vw; max-height:85vh;
+  object-fit:contain;
+  border:1px solid var(--blue-border);
+  box-shadow:0 0 60px rgba(126,184,247,0.15);
+}
+#gallery-lightbox-close {
+  position:fixed; top:1.5rem; right:2rem; z-index:21001;
+  width:44px; height:44px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(7,11,24,0.8); border:1px solid var(--blue-border);
+  color:var(--text); font-size:1.6rem; line-height:1;
+  cursor:pointer; transition:border-color 0.2s ease, color 0.2s ease;
+}
+#gallery-lightbox-close:hover { border-color:var(--blue); color:var(--blue); }
+@media (max-width:900px) {
+  .archive-masonry { column-count:2; }
+}
+@media (max-width:600px) {
+  .archive-masonry { column-count:1; }
+}
+@media (max-width:768px) {
+
+  .profile-row { flex-direction: column; }
+  .profile-name, .profile-name-zh { text-align: center; }
+}
+
+#featured { border-top:1px solid rgba(126,184,247,0.08); min-height: 130vh; display: flex; align-items: center; }
+.featured-panel { padding:3rem; }
+
+/* ── carousel (3D coverflow: side cards peek in, tilted, and straighten
+   when they become the active/center card) ── */
+.featured-carousel { position:relative; display:flex; align-items:center; gap:1rem; }
+.featured-track-wrap {
+  overflow:visible; flex:1; min-width:0;
+  perspective: 1400px;
+}
+.featured-track { position:relative; height:auto; transform-style: preserve-3d; }
+.featured-track .featured-panel {
+  position:absolute; top:0; left:0; width:100%; box-sizing:border-box;
+  transition: transform 0.2s cubic-bezier(0.65,0,0.35,1), opacity 0.2s ease, filter 0.2s ease;
+  backface-visibility: hidden;
+}
+.featured-nav-btn {
+  flex-shrink:0; width:44px; height:44px; border-radius:50%;
+  border:1px solid rgba(126,184,247,0.35); background:#04060f; color:var(--blue);
+  font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all 0.2s ease; z-index:2;
+}
+.featured-nav-btn:hover { border-color:var(--blue); background:var(--blue); color:#04060f; box-shadow:0 0 20px rgba(126,184,247,0.4); }
+.featured-nav-btn:disabled { opacity:0.25; cursor:default; pointer-events:none; }
+.featured-dots { display:flex; justify-content:center; gap:0.6rem; margin-top:2rem; }
+.featured-dot { width:7px; height:7px; border-radius:50%; background:rgba(126,184,247,0.25); cursor:pointer; transition:all 0.25s ease; }
+.featured-dot:hover { background:rgba(126,184,247,0.5); }
+.featured-dot.active { background:var(--blue); box-shadow:0 0 8px rgba(126,184,247,0.6); transform:scale(1.3); }
+
+.featured-top { display:grid; grid-template-columns:1fr auto; gap:2rem; align-items:start; margin-bottom:2rem; padding-bottom:2rem; border-bottom:1px solid rgba(126,184,247,0.08); }
+.featured-title { font-family:'Orbitron',monospace; font-size:clamp(1.3rem,3vw,2rem); font-weight:700; letter-spacing:0.06em; color:var(--text); line-height:1.3; }
+.featured-sub { font-family:'JetBrains Mono',monospace; font-size:0.65rem; letter-spacing:0.13em; color:var(--blue); margin-top:0.5rem; text-transform:uppercase; }
+.featured-role-badge { font-family:'JetBrains Mono',monospace; font-size:0.6rem; letter-spacing:0.13em; padding:0.5rem 1rem; border:1px solid var(--indigo); color:var(--indigo); white-space:nowrap; text-transform:uppercase; box-shadow:var(--glow-indigo); }
+.featured-desc { font-size:0.88rem; line-height:1.95; color:var(--text); max-width:700px; margin-bottom:2rem; }
+.featured-specs { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:0.75rem; }
+.spec-item { display:flex; align-items:center; gap:0.75rem; font-size:0.8rem; color:var(--text-mid); padding:0.6rem 0.75rem; border:1px solid rgba(126,184,247,0.08); background:rgba(126,184,247,0.03); }
+.spec-dot { width:4px; height:4px; border-radius:50%; background:var(--blue); flex-shrink:0; box-shadow:0 0 6px var(--blue); }
+
+#contact { border-top:1px solid rgba(126,184,247,0.08); background:var(--bg2); min-height: 60vh; display: flex; align-items: center; }
+.contact-layout { display:flex; flex-direction:column; gap:3rem; }
+.contact-heading { text-align:center; }
+.contact-title { font-family:'Orbitron',monospace; font-size:clamp(2rem,5vw,4rem); font-weight:900; letter-spacing:0.05em; line-height:1.05; color:var(--text); }
+.contact-title span { color:var(--blue); }
+.contact-bottom-row { display:flex; align-items:flex-end; justify-content:space-between; gap:3rem; flex-wrap:wrap; }
+.contact-items { display:flex; flex-direction:column; }
+.contact-item { display:flex; align-items:center; gap:1.5rem; padding:1.25rem 1.5rem; border:1px solid var(--blue-border); border-bottom:none; text-decoration:none; transition:background 0.2s; position:relative; }
+.contact-item:last-child { border-bottom:1px solid var(--blue-border); }
+.contact-item::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--blue); transform:scaleY(0); transform-origin:top; transition:transform 0.25s; }
+.contact-item:hover { background:var(--blue-dim); }
+.contact-item:hover::before { transform:scaleY(1); }
+.contact-type { font-family:'JetBrains Mono',monospace; font-size:0.55rem; letter-spacing:0.16em; color:var(--blue); text-transform:uppercase; min-width:55px; }
+.contact-val { font-size:0.85rem; color:var(--text); font-weight:600; }
+
+.qr-widget { display:flex; flex-direction:column; align-items:center; gap:0.7rem; flex-shrink:0; }
+.qr-widget-label {
+  font-family:'JetBrains Mono',monospace; font-size:0.65rem; letter-spacing:0.16em;
+  color:var(--title-accent); text-transform:uppercase;
+}
+.qr-widget-box {
+  width:160px; height:160px;
+  background:rgba(126,184,247,0.04);
+  border:1px solid var(--blue-border);
+  display:flex; align-items:center; justify-content:center;
+  position:relative; overflow:hidden;
+  text-decoration:none; cursor:pointer; transition:border-color 0.2s ease;
+}
+.qr-widget-box:hover { border-color:var(--blue); }
+.qr-widget-box::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg,var(--blue),var(--indigo),transparent);
+}
+.qr-widget-icon { font-size:2.2rem; color:var(--blue-border); line-height:1; }
+
+/* smaller variant for use inside Project Archive cards, where space is tighter */
+.qr-widget.qr-widget--sm .qr-widget-box { width:96px; height:96px; }
+.qr-widget.qr-widget--sm .qr-widget-icon { font-size:1.4rem; }
+.qr-widget.qr-widget--sm .qr-widget-label { font-size:0.56rem; }
+
+/* floating variant — sits absolutely positioned in the bottom-right
+   corner of its containing photo (e.g. .featured-img), rather than
+   flowing inline below the card content */
+.qr-widget--floating {
+  position:absolute; bottom:0.75rem; right:0.75rem; z-index:3;
+  gap:0.35rem;
+}
+.qr-widget--floating .qr-widget-label {
+  background:rgba(2,3,10,0.75); padding:0.2rem 0.5rem;
+}
+.qr-widget--floating .qr-widget-box { background:rgba(2,3,10,0.85); }
+
+footer { border-top:1px solid rgba(126,184,247,0.08); padding:1.5rem 4rem; display:flex; justify-content:space-between; align-items:center; }
+.footer-copy { font-family:'JetBrains Mono',monospace; font-size:0.6rem; letter-spacing:0.13em; color:var(--text-dim); text-transform:uppercase; }
+
+/* section glitch reveal — JS handles everything via canvas overlay */
+
+/* each section gets a canvas overlay for glitch reveal/exit */
+.section-glitch-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  display: block;
+}
+/* sections start hidden */
+.glitch-section {
+  position: relative;
+  overflow: hidden;
+}
+/* the featured section's 3D coverflow needs side cards to peek past its
+   own bounds — overriding overflow here specifically, since the canvas
+   mask used for the section's reveal/hide animation is sized to the
+   section itself and doesn't depend on the parent clipping it */
+#featured {
+  overflow: visible;
+}
+.glitch-section .section-content {
+  opacity: 1;
+  width: 100%;
+}
+/* enlarge content scale for About / Project Archive / Graduation Project
+   sections specifically — zoom scales the whole rendered layout (sizes,
+   spacing, font-sizes) together, unlike font-size alone which wouldn't
+   affect rem-based child elements */
+#about .section-content,
+#featured .section-content {
+  zoom: 1.15;
+}
+
+@media (max-width:768px) {
+  nav { padding:0 1.5rem; }
+  .nav-links { display:none; }
+  .section-inner { padding:4rem 1.5rem; }
+  .about-grid { grid-template-columns:1fr; }
+  .projects-grid { grid-template-columns:1fr; }
+  .featured-top { grid-template-columns:1fr; }
+  .contact-bottom-row { flex-direction:column; align-items:center; gap:2rem; }
+  footer { flex-direction:column; gap:0.5rem; padding:1.5rem; }
+  .hud-corner { display:none; }
+}
+</style>
+</head>
+<body>
+
+<div id="maximize-gate">
+  <div class="maximize-gate-text">請將視窗最大化以保持最佳體驗</div>
+</div>
+
+<div class="screen-edge-glow" id="screen-edge-glow"></div>
+
+<div id="loading-screen">
+  <canvas id="loading-glitch-canvas"></canvas>
+  <div class="loading-scanlines"></div>
+  <div class="loading-text-wrap">
+    <div class="loading-text"><span id="loading-text-content"></span><span class="loading-cursor">|</span></div>
+    <div class="loading-progress-track"><div class="loading-progress-fill" id="loading-progress-fill"></div></div>
+  </div>
+</div>
+
+<div class="hud-corner tl"></div><div class="hud-corner tr"></div>
+<div class="hud-corner bl"></div><div class="hud-corner br"></div>
+
+<!-- ══ 3D INTRO SECTION ══ -->
+<section id="profile-intro">
+  <div class="intro-scroll">
+    <div class="intro-scroll-line"></div>
+    Scroll
+  </div>
+  <div class="profile-row" id="profile-row">
+    <div class="profile-avatar" id="photo-avatar">
+      <span class="profile-avatar-icon" data-photo-placeholder>&#9651;</span>
+    </div>
+    <div class="profile-text">
+      <div class="profile-name">WEI HAN CHEN</div>
+      <div class="profile-name-zh">陳維漢</div>
+      <div class="profile-name-role">3D建模/互動設計</div>
+    </div>
+  </div>
+</section>
+
+<section id="intro-3d">
+  <canvas id="intro-canvas"></canvas>
+  <div class="intro-glow-ring"></div>
+  <div class="intro-center">
+    <div class="intro-name" id="intro-name-text">
+      <div class="intro-name-noise" id="intro-name-noise"></div>
+      <span id="intro-name-textcontent">Break the reality<br>Explore the future.</span>
+    </div>
+    <div class="intro-hint" id="intro-hint-text">點擊右側圖標查看更多訊息</div>
+  </div>
+  <div class="intro-fade-extend"></div>
+
+  <!-- ══ MOBILE-ONLY flat layout — shown instead of the 3D scene on
+       narrow viewports. JS detects mobile and skips Three.js entirely
+       for this case; a lightweight 2D canvas draws a similar noise/star
+       background instead. ══ -->
+  <div id="intro-mobile">
+    <canvas id="intro-mobile-canvas"></canvas>
+    <div class="intro-mobile-content">
+      <div class="intro-name intro-mobile-tagline" id="intro-mobile-name-text">
+        <div class="intro-name-noise" id="intro-mobile-name-noise"></div>
+        <span id="intro-mobile-name-textcontent">Break the reality<br>Explore the future.</span>
+      </div>
+      <div class="intro-mobile-nodes">
+        <a class="intro-mobile-node" href="#about" data-label="About"><span>About</span></a>
+        <a class="intro-mobile-node" href="#featured" data-label="Archive"><span>Archive</span></a>
+        <a class="intro-mobile-node" href="#archive" data-label="Gallery"><span>Gallery</span></a>
+        <a class="intro-mobile-node" href="#profile-intro" data-label="Intro"><span>Intro</span></a>
+        <a class="intro-mobile-node" href="#contact" data-label="Contact"><span>Contact</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<nav>
+  <a class="nav-logo" href="#">WH·CHEN</a>
+  <ul class="nav-links">
+    <li><a href="#intro-3d">Intro</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#featured">Archive</a></li>
+    <li><a href="#archive">Gallery</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<section id="about" class="glitch-section">
+  <div class="section-content"><div class="section-inner">
+    <div class="section-header">
+      <h2 class="section-title">About <span>Me</span></h2>
+    </div>
+    <div class="about-cols">
+
+      <!-- LEFT: bio + awards + skills -->
+      <div class="about-left">
+
+        <div class="panel about-text-panel">
+          <span class="panel-label">Bio.dat</span>
+          <p>兼具<strong>理性與感性</strong>的跨領域創作者，曾就讀美術學校與高職資訊科，在藝術美感與程式技術之間找到獨特的創作語言。</p>
+          <p>加入互動系實驗室後，擔任<strong>助教</strong>並參與數個多媒體互動裝置專案，累積<strong>豐富校內外實際經驗</strong>。</p>
+          <p>擅長協調不同領域的跨界合作，並持續自學更多新技能，以多元視角面對每次創作挑戰。</p>
+        </div>
+
+        <div class="panel">
+          <span class="panel-label">Awards.log</span>
+          <div class="awards-inner">
+            <div class="awards-title">Recognition &amp; Nominations</div>
+            <div class="award-row"><span class="award-tag">2026</span><span class="award-name">金典新秀設計獎</span> — 數位互動設計類</div>
+            <div class="award-row"><span class="award-tag">2026</span><span class="award-name">金點新秀贊助特別獎</span> 入圍</div>
+            <div class="award-row"><span class="award-tag">2026</span><span class="award-name">放視大賞</span> 複審 入圍</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <span class="panel-label">Skills.sys</span>
+          <div class="skills-inner">
+            <div class="skill-group">
+              <div class="skill-group-label">Primary</div>
+              <div class="skill-chips"><span class="chip">3D 建模</span><span class="chip">遊戲製作</span><span class="chip">VFX 設計</span><span class="chip">Shader 製作</span></div>
+            </div>
+            <div class="skill-group">
+              <div class="skill-group-label">Secondary</div>
+              <div class="skill-chips"><span class="chip">3D 動畫</span><span class="chip">程式設計</span><span class="chip">音樂製作</span><span class="chip">互動裝置</span></div>
+            </div>
+            <div class="skill-group">
+              <div class="skill-group-label">Software</div>
+              <div class="skill-chips"><span class="chip">Blender</span><span class="chip">Unity</span><span class="chip">FL Studio</span><span class="chip">Substance Painter</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div></div>
+</section>
+
+<section id="featured" class="glitch-section">
+  <div class="section-content"><div class="section-inner">
+    <div class="section-header">
+      <h2 class="section-title">Project <span>Archive</span></h2>
+    </div>
+
+    <div class="featured-carousel">
+      <button class="featured-nav-btn featured-nav-prev" id="featuredPrev" aria-label="Previous project">&#10094;</button>
+
+      <div class="featured-track-wrap">
+        <div class="featured-track" id="featuredTrack">
+
+          <!-- CARD 1: Graduation Project -->
+          <div class="panel featured-panel">
+            <span class="panel-label">Capstone.exe</span>
+            <div class="featured-top">
+              <div><div class="featured-title">混合實境 DJ / VJ<br>整合式互動系統</div><div class="featured-sub">// MR-integrated audiovisual stage system — 2026</div></div>
+              <div class="featured-role-badge">Team Leader</div>
+            </div>
+            <div class="featured-img" id="photo-featured-01">
+              <div class="featured-img-icon" data-photo-placeholder>&#9651;</div>
+              <div class="qr-widget qr-widget--sm qr-widget--floating">
+                <div class="qr-widget-label">點擊查看</div>
+                <a class="qr-widget-box" id="photo-featured-01-qr" href="https://devourar.github.io/" target="_blank" rel="noopener noreferrer">
+                  <div class="qr-widget-icon" data-photo-placeholder>&#9651;</div>
+                </a>
+              </div>
+            </div>
+            <p class="featured-desc">跨越時空限制的音像整合虛擬舞台系統，為觀眾打造超越想像邊界的極致展演體驗。整合混合實境、即時視覺特效與音樂製作，構築全新的感官體驗維度。自學音樂製作供展覽使用，獲得同學之間的廣泛好評。</p>
+            <div class="featured-specs">
+              <div class="spec-item"><div class="spec-dot"></div>場景設計</div>
+              <div class="spec-item"><div class="spec-dot"></div>3D 建模</div>
+              <div class="spec-item"><div class="spec-dot"></div>Shader 製作</div>
+              <div class="spec-item"><div class="spec-dot"></div>VFX 製作</div>
+              <div class="spec-item"><div class="spec-dot"></div>硬體設計與製作</div>
+              <div class="spec-item"><div class="spec-dot"></div>互動機制設計</div>
+              <div class="spec-item"><div class="spec-dot"></div>音樂製作</div>
+            </div>
+          </div>
+
+          <!-- CARD 2: 超聲體：人魚重奏 -->
+          <div class="panel featured-panel">
+            <span class="panel-label">PRJ_001.exe</span>
+            <div class="featured-top">
+              <div><div class="featured-title">超聲體：人魚重奏</div><div class="featured-sub">// Interactive Performance</div></div>
+              <div class="featured-role-badge">VFX Lead</div>
+            </div>
+            <div class="featured-img" id="photo-featured-02">
+              <div class="featured-img-icon" data-photo-placeholder>&#9651;</div>
+              <div class="qr-widget qr-widget--sm qr-widget--floating">
+                <div class="qr-widget-label">點擊查看</div>
+                <a class="qr-widget-box" id="photo-featured-02-qr" href="https://www.opentix.life/event/1943243345600745472?srsltid=AfmBOoqX9cGUxDJKm1QNinEAZXq7yWQMDnuUqBMp8UfeVv3rbK_nNQE8" target="_blank" rel="noopener noreferrer">
+                  <div class="qr-widget-icon" data-photo-placeholder>&#9651;</div>
+                </a>
+              </div>
+            </div>
+            <p class="featured-desc">和校外劇團「莫比斯圓環創作公社」合作的互動式演出，演出者會戴上VR即使用各種科技裝置進行互動式演出，創造無與倫比的演出體驗!</p>
+            <div class="featured-specs">
+              <div class="spec-item"><div class="spec-dot"></div>VFX</div>
+              <div class="spec-item"><div class="spec-dot"></div>3D Animation</div>
+              <div class="spec-item"><div class="spec-dot"></div>Live Performance</div>
+            </div>
+          </div>
+
+          <!-- CARD 3: PETROLLER -->
+          <div class="panel featured-panel">
+            <span class="panel-label">PRJ_002.exe</span>
+            <div class="featured-top">
+              <div><div class="featured-title">PETROLLER</div><div class="featured-sub">// Haptic Virtual Pet</div></div>
+              <div class="featured-role-badge">3D &amp; Animation</div>
+            </div>
+            <div class="featured-img" id="photo-featured-03">
+              <div class="featured-img-icon" data-photo-placeholder>&#9651;</div>
+            </div>
+            <p class="featured-desc">能帶來觸覺回饋的虛擬寵物裝置，使用者須戴上VR，並與現實中可觸碰的硬體裝置進行互動，即可在虛擬世界中和虛擬寵物相處。</p>
+            <div class="featured-specs">
+              <div class="spec-item"><div class="spec-dot"></div>3D 建模</div>
+              <div class="spec-item"><div class="spec-dot"></div>Animation</div>
+              <div class="spec-item"><div class="spec-dot"></div>Haptics</div>
+              <div class="spec-item"><div class="spec-dot"></div>Blender</div>
+            </div>
+          </div>
+
+          <!-- CARD 4: 北醫病人復健遊戲 -->
+          <div class="panel featured-panel">
+            <span class="panel-label">PRJ_003.exe</span>
+            <div class="featured-top">
+              <div><div class="featured-title">北醫病人復健遊戲</div><div class="featured-sub">// VR Rehabilitation Game</div></div>
+              <div class="featured-role-badge">3D &amp; Scene Design</div>
+            </div>
+            <div class="featured-img" id="photo-featured-04">
+              <div class="featured-img-icon" data-photo-placeholder>&#9651;</div>
+            </div>
+            <p class="featured-desc">搭配硬體裝置的 VR 復健遊戲，結合醫療需求與互動設計，為病人打造沉浸式的復健體驗。</p>
+            <div class="featured-specs">
+              <div class="spec-item"><div class="spec-dot"></div>3D 建模</div>
+              <div class="spec-item"><div class="spec-dot"></div>場景設計</div>
+              <div class="spec-item"><div class="spec-dot"></div>Unity</div>
+              <div class="spec-item"><div class="spec-dot"></div>VR</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <button class="featured-nav-btn featured-nav-next" id="featuredNext" aria-label="Next project">&#10095;</button>
+    </div>
+
+    <div class="featured-dots" id="featuredDots">
+      <span class="featured-dot active" data-index="0"></span>
+      <span class="featured-dot" data-index="1"></span>
+      <span class="featured-dot" data-index="2"></span>
+      <span class="featured-dot" data-index="3"></span>
+    </div>
+
+  </div></div>
+</section>
+
+<section id="archive" class="glitch-section">
+  <div class="section-content"><div class="section-inner">
+    <div class="section-header">
+      <h2 class="section-title">歷年<span>作品</span></h2>
+    </div>
+
+    <div id="archiveGroups">
+      <!-- JS renders year group sections here, each with a heading
+           and its own masonry grid of archive-card elements -->
+    </div>
+
+    <div class="archive-empty-msg" id="archiveEmptyMsg" style="display:none;">尚無作品 // No projects yet</div>
+
+    <a class="archive-full-link" href="https://drive.google.com/drive/folders/1QjH_TlhzqTwUDk4QBFLxz1ZjfNx2sNoj?usp=sharing" target="_blank" rel="noopener noreferrer">點擊查看完整作品集！</a>
+
+  </div></div>
+</section>
+
+<div id="gallery-lightbox">
+  <button id="gallery-lightbox-close" aria-label="Close">&times;</button>
+  <img id="gallery-lightbox-img" src="" alt="">
+</div>
+
+<section id="contact" class="glitch-section">
+  <div class="section-content"><div class="section-inner">
+    <div class="contact-layout">
+      <div class="contact-heading">
+        <div class="contact-title">LET'S <span>BUILD</span> WORLDS</div>
+      </div>
+      <div class="contact-bottom-row">
+        <div class="contact-items reveal">
+          <a class="contact-item" href="mailto:wchen3326@gmail.com"><span class="contact-type">Email</span><span class="contact-val">wchen3326@gmail.com</span></a>
+          <a class="contact-item" href="tel:0983391577"><span class="contact-type">Phone</span><span class="contact-val">0983-391-577</span></a>
+        </div>
+        <div class="qr-widget">
+          <div class="qr-widget-label">GitHub（點擊跳轉）</div>
+          <a class="qr-widget-box" id="photo-github-qr" href="https://github.com/Devourar" target="_blank" rel="noopener noreferrer">
+            <div class="qr-widget-icon" data-photo-placeholder>&#9651;</div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-copy">&copy; 2026 Wei Han Chen — Mixed Reality Artist</div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ══ MOBILE DETECTION — shared helper. Uses the same 768px breakpoint as
+   the CSS media queries, so JS and CSS always agree on what counts as
+   "mobile". Used to skip the Three.js 3D scene entirely on narrow
+   viewports in favor of the flat #intro-mobile layout. ══ */
+function isMobileLayout() {
+  return window.innerWidth <= 768;
+}
+
+/* ══ MAXIMIZE GATE — nothing below should start running (loading screen,
+   3D scene, glitch effects, carousels, etc.) until the browser window is
+   maximized. Other IIFEs register their startup logic via onGateOpen()
+   instead of running immediately; that function either runs the callback
+   right away (if the gate is already open) or queues it until the gate
+   opens. ══ */
+window.__siteGateOpen = false;
+window.__siteGateQueue = [];
+function onGateOpen(fn) {
+  if (window.__siteGateOpen) { fn(); }
+  else { window.__siteGateQueue.push(fn); }
+}
+
+(function(){
+  const MAXIMIZE_GATE_ENABLED = true; // toggle to false to temporarily disable the maximize-required overlay
+
+  const gateEl = document.getElementById('maximize-gate');
+  if (!gateEl) { window.__siteGateOpen = true; return; }
+
+  if (!MAXIMIZE_GATE_ENABLED) {
+    gateEl.style.display = 'none';
+    document.body.classList.remove('gate-locked');
+    window.__siteGateOpen = true;
+    return;
+  }
+
+  const TOLERANCE = 150; // px — allows for browser chrome/toolbars/scrollbars
+
+  function isMaximized() {
+    const availW = window.screen.availWidth;
+    const availH = window.screen.availHeight;
+    return (
+      Math.abs(window.innerWidth - availW) <= TOLERANCE &&
+      Math.abs(window.innerHeight - availH) <= TOLERANCE
+    );
+  }
+
+  function openGate() {
+    // always hide the overlay and unlock the body when maximized,
+    // whether this is the first time or a re-maximize after shrinking
+    gateEl.style.display = 'none';
+    document.body.classList.remove('gate-locked');
+
+    if (window.__siteGateOpen) return; // startup sequence already ran once
+    window.__siteGateOpen = true;
+    const loadingScreenEl = document.getElementById('loading-screen');
+    if (loadingScreenEl) loadingScreenEl.style.display = 'flex';
+    // run every queued startup function, in the order they were registered
+    const queue = window.__siteGateQueue;
+    window.__siteGateQueue = [];
+    queue.forEach(fn => fn());
+  }
+
+  function closeGate() {
+    // show the overlay and lock interaction whenever the window isn't
+    // maximized — this re-locks on shrink even after the site has already
+    // started (the queued startup logic only ever runs once, the first
+    // time the gate opens; this just re-shows/hides the blocking overlay)
+    gateEl.style.display = 'flex';
+    document.body.classList.add('gate-locked');
+  }
+
+  function check() {
+    if (isMaximized()) { openGate(); }
+    else { closeGate(); }
+  }
+
+  check();
+  window.addEventListener('resize', check);
+})();
+
+/* ══ PHOTO LOADER — graceful-degradation helper. Tries to load an image
+   at the given path; if it loads successfully, sets it as a background-
+   image on the target element and hides its placeholder icon/label. If
+   the file doesn't exist (404), the original triangle-icon placeholder
+   is left untouched — so dropping in real photos with the right
+   filenames is all that's needed, no code changes required. ══ */
+function loadPhotoInto(selector, path, fitHeight) {
+  const el = document.querySelector(selector);
+  if (!el) return;
+  const img = new Image();
+  img.onload = () => {
+    el.style.backgroundImage = `url('${path}')`;
+    el.style.backgroundPosition = 'center';
+    if (fitHeight) {
+      // width stays as-is; height adapts to the image's natural ratio so
+      // the whole photo shows uncropped, instead of being cropped to fit
+      // a fixed-ratio box
+      el.style.backgroundSize = 'contain';
+      el.style.backgroundRepeat = 'no-repeat';
+      const ratio = img.naturalHeight / img.naturalWidth;
+      const setHeight = () => {
+        el.style.height = (el.clientWidth * ratio) + 'px';
+        el.dispatchEvent(new CustomEvent('photo-fit-resized', { bubbles: true }));
+      };
+      setHeight();
+      window.addEventListener('resize', setHeight);
+    } else {
+      el.style.backgroundSize = 'cover';
+    }
+    el.querySelectorAll('[data-photo-placeholder]').forEach(p => p.style.display = 'none');
+  };
+  img.onerror = () => { /* file not found — keep placeholder as-is */ };
+  img.src = path;
+}
+
+// fixed-position photo slots (profile avatar, about-me photo, and the 4
+// Project Archive carousel cards) — these elements exist in the static
+// HTML already, so we can attempt loading immediately once the gate opens
+onGateOpen(function(){
+  loadPhotoInto('#photo-avatar',       'Images/Profile/avatar.png');
+  loadPhotoInto('#photo-featured-01',  'Images/Featured/featured-01.png', true);
+  loadPhotoInto('#photo-featured-02',  'Images/Featured/featured-02.png', true);
+  loadPhotoInto('#photo-featured-03',  'Images/Featured/featured-03.png', true);
+  loadPhotoInto('#photo-featured-04',  'Images/Featured/featured-04.png', true);
+  loadPhotoInto('#photo-github-qr',    'Images/Profile/github-qr.png');
+  loadPhotoInto('#photo-featured-01-qr', 'Images/Featured/featured-01-qr.png');
+  loadPhotoInto('#photo-featured-02-qr', 'Images/Featured/featured-02-qr.png');
+});
+
+/* ══ ARCHIVE — grouped by year, each group renders as a heading + its
+   own masonry grid. Photos live in year subfolders: Images/Gallery/{year}/
+   add new works by adding a { year, file } entry below and dropping the
+   matching photo into the matching year folder. ══ */
+onGateOpen(function(){
+  const groupsContainer = document.getElementById('archiveGroups');
+  const emptyMsg = document.getElementById('archiveEmptyMsg');
+  if (!groupsContainer) return;
+
+  // ── work data — one entry per photo. `file` is the filename without
+  //    the .png extension. The photo must live at:
+  //    Images/Gallery/{year}/{file}.png
+  //    To add a new work: drop the photo in the matching year folder
+  //    (create the folder if that year doesn't exist yet), then add a
+  //    matching entry below. ──
+  const WORKS = [
+    { year: '2026', file: 'gallery-01' },
+    { year: '2026', file: 'gallery-02' },
+    { year: '2026', file: 'gallery-03' },
+    { year: '2026', file: 'gallery-04' },
+    { year: '2026', file: 'gallery-05' },
+    { year: '2026', file: 'gallery-06' },
+    { year: '2025', file: 'gallery-01' },
+    { year: '2025', file: 'gallery-02' },
+    { year: '2025', file: 'gallery-03' },
+    { year: '2025', file: 'gallery-04' },
+    { year: '2025', file: 'gallery-05' },
+    { year: '2025', file: 'gallery-06' },
+    { year: '2025', file: 'gallery-07' },
+    { year: '2025', file: 'gallery-08' },
+    { year: '2025', file: 'gallery-09' },
+    { year: '2024', file: 'gallery-01' },
+    { year: '2024', file: 'gallery-02' },
+    { year: '2024', file: 'gallery-03' },
+    { year: '2024', file: 'gallery-04' },
+    { year: '2024', file: 'gallery-05' },
+    { year: '2024', file: 'gallery-06' },
+    // 複製以下這行即可新增作品 ↓
+    // { year: '20XX', file: 'gallery-06' },
+  ];
+
+  // ── lightbox: click a Gallery card to view its photo enlarged ──
+  const lightboxEl = document.getElementById('gallery-lightbox');
+  const lightboxImg = document.getElementById('gallery-lightbox-img');
+  const lightboxCloseBtn = document.getElementById('gallery-lightbox-close');
+
+  function openLightbox(src) {
+    if (!lightboxEl || !lightboxImg || !src) return;
+    lightboxImg.src = src;
+    lightboxEl.classList.add('open');
+  }
+  function closeLightbox() {
+    if (!lightboxEl) return;
+    lightboxEl.classList.remove('open');
+  }
+  if (lightboxCloseBtn) lightboxCloseBtn.addEventListener('click', closeLightbox);
+  if (lightboxEl) {
+    lightboxEl.addEventListener('click', (e) => {
+      if (e.target === lightboxEl) closeLightbox(); // click on the dark backdrop, not the image
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+
+  function cardHTML(w) {
+    const id = `gallery-${w.year}-${w.file}`;
+    const src = `Images/Gallery/${w.year}/${w.file}.png`;
+    return `
+      <div class="archive-card" data-full-src="${src}">
+        <div class="archive-card-img" id="photo-${id}" style="height:240px;">
+          <div class="archive-card-img-icon" data-photo-placeholder>&#9651;</div>
+        </div>
+      </div>`;
+  }
+
+  function render() {
+    if (WORKS.length === 0) {
+      groupsContainer.innerHTML = '';
+      if (emptyMsg) emptyMsg.style.display = 'block';
+      return;
+    }
+    if (emptyMsg) emptyMsg.style.display = 'none';
+
+    const years = [...new Set(WORKS.map(w => w.year))]
+      .sort((a, b) => b.localeCompare(a)); // newest year first
+
+    groupsContainer.innerHTML = years.map(year => {
+      const items = WORKS.filter(w => w.year === year);
+      return `
+        <div class="archive-group">
+          <div class="archive-group-title">${year}</div>
+          <div class="archive-masonry">
+            ${items.map(cardHTML).join('')}
+          </div>
+        </div>`;
+    }).join('');
+
+    // attempt to load each work's photo now that the cards exist in the
+    // DOM — fitHeight lets each card's height adapt to its photo's real
+    // aspect ratio (masonry look), instead of needing a manually-set height
+    WORKS.forEach(w => {
+      const id = `gallery-${w.year}-${w.file}`;
+      const src = `Images/Gallery/${w.year}/${w.file}.png`;
+      loadPhotoInto(`#photo-${id}`, src, true);
+    });
+
+    // wire up lightbox click handlers for every card now in the DOM
+    groupsContainer.querySelectorAll('.archive-card').forEach(card => {
+      card.addEventListener('click', () => {
+        openLightbox(card.dataset.fullSrc);
+      });
+    });
+  }
+
+  render();
+});
+
+/* ══ FEATURED PROJECT CAROUSEL — 3D coverflow ══ */
+onGateOpen(function(){
+  const track = document.getElementById('featuredTrack');
+  const wrap = track ? track.parentElement : null;
+  const prevBtn = document.getElementById('featuredPrev');
+  const nextBtn = document.getElementById('featuredNext');
+  const dots = document.querySelectorAll('#featuredDots .featured-dot');
+  if (!track || !prevBtn || !nextBtn) return;
+
+  const cards = Array.from(track.children);
+  const totalCards = cards.length;
+  let current = 0;
+
+  function resizeTrack() {
+    // track itself needs an explicit height since its children are all
+    // position:absolute (which otherwise collapses the parent to 0 height).
+    // Fixed to the first card's height, and every card is also forced to
+    // that same height, so all cards are equal-height regardless of how
+    // much content (e.g. number of spec tags) each one has.
+    // Heights are reset to auto first so we always measure the first
+    // card's natural content height, not a previously-locked value —
+    // otherwise resizing the window (which can change text wrapping)
+    // would measure a stale height.
+    cards.forEach(card => { card.style.height = 'auto'; });
+    const baseHeight = cards[0].offsetHeight;
+    track.style.height = baseHeight + 'px';
+    cards.forEach(card => { card.style.height = baseHeight + 'px'; });
+  }
+
+  function update() {
+    cards.forEach((card, i) => {
+      const offset = i - current; // -2,-1,0,1,2...
+      const abs = Math.abs(offset);
+
+      if (abs > 2) {
+        // far off-screen cards: fully hidden, no need to render visibly
+        card.style.opacity = '0';
+        card.style.pointerEvents = 'none';
+        card.style.transform = `translateX(${offset > 0 ? 100 : -100}%) translateZ(-400px)`;
+        card.style.zIndex = '0';
+        card.style.filter = 'blur(2px)';
+        return;
+      }
+
+      // side cards peek in from ~38% to the side, tilted via rotateY;
+      // the active card (offset 0) sits flat and centered
+      const translateX = offset * 38; // %
+      const rotateY = offset * -32; // deg — tilts away, like a cover flipping open
+      const translateZ = -abs * 160; // px — pushed back so it reads as "behind"
+      const scale = 1 - abs * 0.14;
+
+      card.style.transform =
+        `translateX(${translateX}%) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`;
+      card.style.opacity = '1';
+      card.style.zIndex = String(10 - abs);
+      card.style.filter = abs === 0 ? 'none' : 'blur(1px)';
+      card.style.pointerEvents = abs === 0 ? 'auto' : 'none';
+    });
+
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === totalCards - 1;
+    dots.forEach((dot, i) => dot.classList.toggle('active', i === current));
+    resizeTrack();
+  }
+
+  prevBtn.addEventListener('click', () => {
+    if (current > 0) { current--; update(); }
+  });
+  nextBtn.addEventListener('click', () => {
+    if (current < totalCards - 1) { current++; update(); }
+  });
+  dots.forEach((dot, i) => {
+    dot.addEventListener('click', () => { current = i; update(); });
+  });
+  window.addEventListener('resize', resizeTrack);
+  track.addEventListener('photo-fit-resized', resizeTrack);
+
+  update();
+});
+
+/* ══════════════════════════════════════════
+   SECTION GLITCH REVEAL / EXIT ENGINE
+   Each .glitch-section gets its own canvas.
+   IntersectionObserver triggers:
+     enter → pixel noise dissolves OUT revealing content
+     exit  → pixel noise dissolves IN hiding content
+══════════════════════════════════════════ */
+const SCELL = 18;   // pixel block size for section glitch
+
+function sectionNoiseColor() {
+  const g = Math.floor(Math.random() * 21); // 0–20
+  const v = Math.random();
+  // slightly nudged toward purple — a small red increase relative to
+  // green, just a touch, while keeping the overall lower saturation
+  if (v < 0.30) return `rgba(55,${95+g},190,`;
+  if (v < 0.50) return `rgba(48,${85+g},150,`;
+  if (v < 0.65) return `rgba(58,${75+g},130,`;
+  if (v < 0.80) return `rgba(68,${105+g},200,`;
+  return `rgba(15,${40+g},75,`;
+}
+
+function easeInS(t)  { return t*t*t; }
+function easeOutS(t) { return 1-Math.pow(1-t,3); }
+
+function shuffleArr(arr) {
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+/* ══ LOADING SCREEN — 1s black hold, then glitch-dissolve away ══ */
+onGateOpen(function(){
+  const screen = document.getElementById('loading-screen');
+  const canvas = document.getElementById('loading-glitch-canvas');
+  if (!screen || !canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function dissolveAway() {
+    const W = canvas.width, H = canvas.height;
+    const cols = Math.ceil(W / SCELL), rows = Math.ceil(H / SCELL);
+    const total = cols * rows;
+    const order = shuffleArr(Array.from({length: total}, (_, i) => i));
+    const TOTAL = 220;
+    const start = performance.now();
+
+    function frame(now) {
+      const t = Math.min((now - start) / TOTAL, 1);
+      ctx.clearRect(0, 0, W, H);
+
+      // remaining black cells shrink away (starts full, ends empty)
+      const remaining = Math.floor((1 - easeOutS(t)) * total);
+      for (let i = 0; i < remaining; i++) {
+        const idx = order[i];
+        const c = idx % cols, r = Math.floor(idx / cols);
+        ctx.fillStyle = '#030408';
+        ctx.fillRect(c*SCELL, r*SCELL, SCELL, SCELL);
+
+        // noise flicker on the dissolving edge
+        if (Math.random() < 0.35 * (1 - t)) {
+          const a = (1 - t) * (0.3 + Math.random() * 0.5);
+          ctx.fillStyle = sectionNoiseColor() + a + ')';
+          ctx.fillRect(c*SCELL, r*SCELL, SCELL, SCELL);
+        }
+      }
+
+      // glitch slice tears during the dissolve
+      if (t < 0.5) {
+        const slices = Math.floor(Math.random() * 4);
+        for (let i = 0; i < slices; i++) {
+          const sy = Math.random() * H;
+          const sh = SCELL * (0.5 + Math.random());
+          const a  = (0.5 - t) * (0.1 + Math.random() * 0.15);
+          ctx.fillStyle = sectionNoiseColor() + a + ')';
+          ctx.fillRect(0, sy, W, sh);
+        }
+      }
+
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        screen.remove();
+        const edgeGlow = document.getElementById('screen-edge-glow');
+        if (edgeGlow) edgeGlow.style.opacity = '1';
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // fill canvas solid black immediately so the dissolve has something to
+  // animate away from (the text sits on top via the DOM, unaffected)
+  ctx.fillStyle = '#030408';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // typewriter effect: "Loading..." typed out character by character, fast
+  const textEl = document.getElementById('loading-text-content');
+  const fullText = 'Loading...';
+  let charIndex = 0;
+  const TYPE_INTERVAL = 28; // ms per character — much faster than the original 90ms
+
+  function typeNext() {
+    if (charIndex <= fullText.length) {
+      textEl.textContent = fullText.slice(0, charIndex);
+      charIndex++;
+      setTimeout(typeNext, TYPE_INTERVAL);
+    }
+  }
+  typeNext();
+
+  // progress bar fills over the same 1000ms hold duration as the rest
+  // of the loading screen, in sync with everything else finishing together
+  const progressEl = document.getElementById('loading-progress-fill');
+  const PROGRESS_DURATION = 1000;
+  const progressStart = performance.now();
+  function tickProgress(now) {
+    const t = Math.min((now - progressStart) / PROGRESS_DURATION, 1);
+    if (progressEl) progressEl.style.width = (t * 100) + '%';
+    if (t < 1) requestAnimationFrame(tickProgress);
+  }
+  requestAnimationFrame(tickProgress);
+
+  setTimeout(() => {
+    screen.querySelector('.loading-text-wrap').style.display = 'none';
+    dissolveAway();
+  }, 1000);
+});
+
+onGateOpen(function(){
+class SectionGlitch {
+  constructor(section) {
+    this.section = section;
+    this.content = section.querySelector('.section-content');
+    // #about sits directly beneath the 3D intro scene's fade-extend overlay —
+    // use a matching gradient instead of flat black so the pre-reveal state
+    // blends seamlessly with the starfield above instead of showing a hard edge
+    this.useGradientFill = (section.id === 'about');
+
+    // inject canvas
+    this.canvas = document.createElement('canvas');
+    this.canvas.className = 'section-glitch-canvas';
+    section.appendChild(this.canvas);
+    this.ctx = this.canvas.getContext('2d');
+
+    this.state = 'hidden';  // hidden | revealing | visible | hiding
+    this.raf = null;
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+
+    // start fully covered black
+    this._fillBlack();
+  }
+
+  resize() {
+    this.canvas.width  = this.section.offsetWidth;
+    this.canvas.height = this.section.offsetHeight;
+    if (this.state === 'hidden')  this._fillBlack();
+    if (this.state === 'visible') this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+  }
+
+  _fillBlack() {
+    const {ctx, canvas} = this;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if (this.useGradientFill) {
+      // same curve as .intro-fade-extend: solid near the top, fading toward
+      // transparent-ish dark by ~320px down, then flat black for the rest
+      const fadeDepth = Math.min(320, canvas.height);
+      const grad = ctx.createLinearGradient(0, 0, 0, fadeDepth);
+      grad.addColorStop(0,    '#000');
+      grad.addColorStop(0.30, 'rgba(0,0,0,0.75)');
+      grad.addColorStop(0.65, 'rgba(0,0,0,0.35)');
+      grad.addColorStop(1,    'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, fadeDepth);
+      // below the fade zone, the section is still meant to read as solid
+      // black before reveal — fill the remainder flat
+      ctx.fillStyle = '#030408';
+      ctx.fillRect(0, fadeDepth, canvas.width, canvas.height - fadeDepth);
+    } else {
+      ctx.fillStyle = '#030408';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
+  }
+
+  _runAnim(duration, onFrame, onDone) {
+    cancelAnimationFrame(this.raf);
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min((now-start)/duration, 1);
+      onFrame(t);
+      if(t < 1) { this.raf = requestAnimationFrame(tick); }
+      else { onDone && onDone(); }
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+
+  reveal() {
+    if(this.state === 'visible' || this.state === 'revealing') return;
+    this.state = 'revealing';
+    // content always visible underneath — canvas is the mask
+    this.content.style.opacity = '1';
+
+    const W=this.canvas.width, H=this.canvas.height;
+    const cols=Math.ceil(W/SCELL), rows=Math.ceil(H/SCELL);
+    const total=cols*rows;
+    // randomise the order cells disappear
+    const order = shuffleArr(Array.from({length:total},(_,i)=>i));
+
+    // total reveal time; cells drop away one by one with noise flicker
+    const TOTAL = 300;
+
+    this._runAnim(TOTAL, (t) => {
+      const {ctx} = this;
+      ctx.clearRect(0,0,W,H);
+
+      // how many black cells remain (starts full, ends empty)
+      const remaining = Math.floor((1 - easeOutS(t)) * total);
+
+      // batch-draw: build one Path2D for solid-black cells and one for
+      // gradient-faded cells (instead of one fillRect call per cell —
+      // draw-call overhead, not pixel count, is what gets expensive at
+      // thousands of cells on tall sections)
+      const blackPath = new Path2D();
+      let gradCellCount = 0;
+
+      for(let i=0;i<remaining;i++){
+        const idx = order[i];
+        const c = idx % cols, r = Math.floor(idx / cols);
+        const cellY = r * SCELL;
+
+        if (this.useGradientFill && cellY < 320) {
+          // gradient-faded cells are rare (only top 320px) and each needs
+          // its own alpha, so draw these individually
+          const fadeT = cellY / 320;
+          const cellAlpha = fadeT < 0.30 ? 1
+                           : fadeT < 0.65 ? 0.75 - (fadeT-0.30)/(0.65-0.30)*0.4
+                           : 0.35 * (1 - (fadeT-0.65)/(1-0.65));
+          ctx.fillStyle = `rgba(0,0,0,${Math.max(0, cellAlpha)})`;
+          ctx.fillRect(c*SCELL, r*SCELL, SCELL, SCELL);
+          gradCellCount++;
+        } else {
+          blackPath.rect(c*SCELL, r*SCELL, SCELL, SCELL);
+        }
+
+        // noise flicker on top of black cells (fades as t grows)
+        if(Math.random() < 0.35 * (1-t)) {
+          const a = (1-t) * (0.3 + Math.random() * 0.5);
+          ctx.fillStyle = sectionNoiseColor() + a + ')';
+          ctx.fillRect(c*SCELL, r*SCELL, SCELL, SCELL);
+        }
+      }
+      ctx.fillStyle = '#030408';
+      ctx.fill(blackPath);
+
+      // glitch slice tears during first half
+      if(t < 0.5) {
+        const slices = Math.floor(Math.random() * 4);
+        for(let i=0;i<slices;i++){
+          const sy = Math.random() * H;
+          const sh = SCELL * (0.5 + Math.random());
+          const a  = (0.5-t) * (0.1 + Math.random()*0.15);
+          ctx.fillStyle = sectionNoiseColor() + a + ')';
+          ctx.fillRect(0, sy, W, sh);
+        }
+      }
+    }, () => {
+      this.ctx.clearRect(0,0,W,H);
+      this.state = 'visible';
+    });
+  }
+
+  hide() {
+    if(this.state === 'hidden' || this.state === 'hiding') return;
+    this.state = 'hiding';
+
+    const W=this.canvas.width, H=this.canvas.height;
+    const cols=Math.ceil(W/SCELL), rows=Math.ceil(H/SCELL);
+    const total=cols*rows;
+    const order = shuffleArr(Array.from({length:total},(_,i)=>i));
+
+    const TOTAL = 200;
+
+    this._runAnim(TOTAL, (t) => {
+      const {ctx} = this;
+      ctx.clearRect(0,0,W,H);
+
+      // black cells grow in (starts empty, ends full)
+      const filled = Math.floor(easeInS(t) * total);
+
+      // batch-draw solid-black cells via Path2D (see reveal() for why)
+      const blackPath = new Path2D();
+
+      for(let i=0;i<filled;i++){
+        const idx = order[i];
+        const c = idx % cols, r = Math.floor(idx / cols);
+        const cellY = r * SCELL;
+
+        if (this.useGradientFill && cellY < 320) {
+          const fadeT = cellY / 320;
+          const cellAlpha = fadeT < 0.30 ? 1
+                           : fadeT < 0.65 ? 0.75 - (fadeT-0.30)/(0.65-0.30)*0.4
+                           : 0.35 * (1 - (fadeT-0.65)/(1-0.65));
+          ctx.fillStyle = `rgba(0,0,0,${Math.max(0, cellAlpha)})`;
+          ctx.fillRect(c*SCELL, r*SCELL, SCELL, SCELL);
+        } else {
+          blackPath.rect(c*SCELL, r*SCELL, SCELL, SCELL);
+        }
+
+        // noise flicker on leading edge
+        if(Math.random() < 0.4 * (1-t)) {
+          const a = 0.15 + Math.random() * 0.25;
+          ctx.fillStyle = sectionNoiseColor() + a + ')';
+          ctx.fillRect(c*SCELL, r*SCELL, SCELL, SCELL);
+        }
+      }
+      ctx.fillStyle = '#030408';
+      ctx.fill(blackPath);
+    }, () => {
+      this._fillBlack();
+      this.content.style.opacity = '0';
+      this.state = 'hidden';
+    });
+  }
+}
+
+// init all glitch sections
+const glitchSections = new Map();
+document.querySelectorAll('.glitch-section').forEach(sec => {
+  glitchSections.set(sec, new SectionGlitch(sec));
+});
+
+// observe
+const secObs = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    const g = glitchSections.get(e.target);
+    if (!g) return;
+    if (e.isIntersecting) { g.reveal(); }
+    else                  { g.hide(); }
+  });
+}, { threshold: 0.08 });
+
+glitchSections.forEach((_, sec) => secObs.observe(sec));
+});
+
+/* ══ PROFILE GLITCH REVEAL — name+photo block fades in via a one-time
+   glitch effect once the loading screen has finished dissolving away
+   (~1.7s after page load). No text scrambling here since this wraps a
+   mixed photo+text block — just RGB split, slice displacement, and
+   brightness flicker on the whole group. ══ */
+onGateOpen(function(){
+  const rowEl = document.getElementById('profile-row');
+  if (!rowEl) return;
+
+  function runProfileGlitch() {
+    rowEl.style.transition = 'none'; // instant flicker frames, not eased
+    rowEl.style.opacity = '1';
+
+    const FRAME_INTERVAL = 16;
+    const TOTAL_FRAMES = 11;
+    let frame = 0;
+
+    function glitchFrame() {
+      if (frame < TOTAL_FRAMES) {
+        const progress = frame / TOTAL_FRAMES;
+
+        const jitterX = (Math.random() - 0.5) * 10 * (1 - progress * 0.6);
+
+        const sliceTop = Math.random() * 70;
+        const sliceHeight = 10 + Math.random() * 25;
+        const sliceShift = (Math.random() - 0.5) * 16;
+        const useSlice = Math.random() < 0.7;
+
+        const splitAmt = 7 * (1 - progress);
+        const rgbSplit = splitAmt > 0.3
+          ? `${splitAmt}px 0 0 rgba(215,70,90,0.75), ${-splitAmt}px 0 0 rgba(90,195,220,0.75)`
+          : 'none';
+
+        rowEl.style.filter = rgbSplit !== 'none' ? `drop-shadow(${rgbSplit})` : 'none';
+        rowEl.style.transform = useSlice
+          ? `translate(${jitterX + sliceShift}px, 0) skewX(${(Math.random()-0.5)*1.5}deg)`
+          : `translateX(${jitterX}px)`;
+        rowEl.style.clipPath = useSlice
+          ? `inset(${sliceTop}% 0 ${Math.max(0, 100 - sliceTop - sliceHeight)}% 0)`
+          : 'none';
+        rowEl.style.opacity = Math.random() < 0.15 ? '0.4' : '1';
+
+        frame++;
+        setTimeout(glitchFrame, FRAME_INTERVAL);
+      } else {
+        rowEl.style.transform = '';
+        rowEl.style.clipPath = 'none';
+        rowEl.style.filter = 'none';
+        rowEl.style.opacity = '1';
+        rowEl.style.transition = '';
+      }
+    }
+    glitchFrame();
+  }
+
+  // matches the loading screen's dissolve completion timing (1000ms hold
+  // + 700ms dissolve animation), plus a small buffer
+  setTimeout(runProfileGlitch, 1750);
+});
+
+/* ══ GLITCH TAGLINE — hidden until scrolled into view (triggers once the
+   section is 70% visible in the viewport), revealed via a glitch effect.
+   Also click-to-replay and auto-triggers every 12s once first revealed.
+   Each glitch is a multi-layered digital distortion: RGB color-split,
+   slice displacement, scrambled characters, brightness flicker, and a
+   static-noise overlay. ══ */
+onGateOpen(function(){
+  const mobile = isMobileLayout();
+  const nameEl = document.getElementById(mobile ? 'intro-mobile-name-text' : 'intro-name-text');
+  const textEl = document.getElementById(mobile ? 'intro-mobile-name-textcontent' : 'intro-name-textcontent');
+  const noiseEl = document.getElementById(mobile ? 'intro-mobile-name-noise' : 'intro-name-noise');
+  const hintEl = mobile ? null : document.getElementById('intro-hint-text'); // no hint text on mobile — no "side icons" to point at
+  const introEl = document.getElementById('intro-3d');
+  if (!nameEl || !textEl || !introEl) return;
+  const originalHTML = textEl.innerHTML;
+  const originalLines = ['Break the reality', 'Explore the future.'];
+  const GLITCH_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%&*▓▒░/\\<>';
+  let glitching = false;
+  let revealed = false;
+  let autoTimer = null;
+
+  function randomGlitchChar() {
+    return GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)];
+  }
+
+  function scrambleLine(line, intensity) {
+    return line.split('').map(ch => {
+      if (ch === ' ') return ch;
+      return Math.random() < intensity ? randomGlitchChar() : ch;
+    }).join('');
+  }
+
+  function runGlitch() {
+    if (glitching) return;
+    glitching = true;
+    nameEl.style.transition = 'none'; // instant flicker frames, not eased
+    nameEl.style.opacity = '1';
+    if (hintEl) hintEl.style.opacity = '1';
+
+    const FRAME_INTERVAL = 16; // ms per glitch frame
+    const TOTAL_FRAMES = 11;
+    let frame = 0;
+
+    function glitchFrame() {
+      if (frame < TOTAL_FRAMES) {
+        const progress = frame / TOTAL_FRAMES;
+        const intensity = 0.55 * (1 - progress); // text scramble strength, tapers off
+
+        // text scramble
+        textEl.innerHTML =
+          scrambleLine(originalLines[0], intensity) + '<br>' + scrambleLine(originalLines[1], intensity);
+
+        // horizontal jitter
+        const jitterX = (Math.random() - 0.5) * 10 * (1 - progress * 0.6);
+
+        // random horizontal slice displacement via clip-path
+        const sliceTop = Math.random() * 70;
+        const sliceHeight = 10 + Math.random() * 25;
+        const sliceShift = (Math.random() - 0.5) * 16;
+        const useSlice = Math.random() < 0.7;
+
+        // RGB color-split via stacked text-shadow ghosts
+        const splitAmt = 7 * (1 - progress);
+        const rgbSplit = splitAmt > 0.3
+          ? `${splitAmt}px 0 0 rgba(215,70,90,0.85), ${-splitAmt}px 0 0 rgba(90,195,220,0.85), 0 0 18px rgba(126,184,247,0.25)`
+          : '0 0 18px rgba(126,184,247,0.25)';
+
+        nameEl.style.textShadow = rgbSplit;
+        nameEl.style.transform = useSlice
+          ? `translate(${jitterX + sliceShift}px, 0) skewX(${(Math.random()-0.5)*1.5}deg)`
+          : `translateX(${jitterX}px)`;
+        nameEl.style.clipPath = useSlice
+          ? `inset(${sliceTop}% 0 ${Math.max(0, 100 - sliceTop - sliceHeight)}% 0)`
+          : 'none';
+
+        // brightness/opacity flicker
+        nameEl.style.opacity = Math.random() < 0.15 ? '0.3' : '1';
+
+        // static noise flickers on/off near the text alongside the glitch
+        if (noiseEl) {
+          noiseEl.style.opacity = Math.random() < 0.5 ? String(0.12 + Math.random() * 0.18) : '0';
+          noiseEl.style.backgroundPosition = `${Math.random()*140}px ${Math.random()*140}px`;
+        }
+
+        frame++;
+        setTimeout(glitchFrame, FRAME_INTERVAL);
+      } else {
+        nameEl.style.transform = '';
+        nameEl.style.clipPath = 'none';
+        nameEl.style.textShadow = '';
+        nameEl.style.opacity = '1';
+        nameEl.style.transition = '';
+        textEl.innerHTML = originalHTML;
+        if (noiseEl) noiseEl.style.opacity = '0';
+        glitching = false;
+      }
+    }
+    glitchFrame();
+  }
+
+  nameEl.addEventListener('click', runGlitch);
+
+  function checkTaglineReveal() {
+    if (revealed) return;
+    const rect = introEl.getBoundingClientRect();
+    const viewportH = window.innerHeight;
+    // how much of the section is currently visible within the viewport,
+    // as a fraction of the viewport's own height (not the section's height)
+    const visibleTop = Math.max(rect.top, 0);
+    const visibleBottom = Math.min(rect.bottom, viewportH);
+    const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+    const progress = visibleHeight / viewportH;
+    if (progress >= 0.70) {
+      revealed = true;
+      window.removeEventListener('scroll', checkTaglineReveal);
+      runGlitch();
+      // auto-trigger every 12 seconds from this point on
+      autoTimer = setInterval(runGlitch, 12000);
+    }
+  }
+  checkTaglineReveal();
+  window.addEventListener('scroll', checkTaglineReveal, { passive: true });
+});
+
+/* ══ NAV VISIBILITY — only show after scrolling past the intro 3D section ══ */
+onGateOpen(function(){
+  const navEl = document.querySelector('nav');
+  const introEl = document.getElementById('intro-3d');
+  if (!navEl || !introEl) return;
+
+  function checkNavVisibility() {
+    const introBottom = introEl.offsetTop + introEl.offsetHeight;
+    if (window.scrollY >= introBottom - 80) {
+      navEl.classList.add('visible');
+    } else {
+      navEl.classList.remove('visible');
+    }
+  }
+  checkNavVisibility();
+  window.addEventListener('scroll', checkNavVisibility, { passive: true });
+  window.addEventListener('resize', checkNavVisibility);
+
+  // fade out the fixed scroll indicator once the user actually starts scrolling
+  const scrollHintEl = document.querySelector('.intro-scroll');
+  function checkScrollHint() {
+    if (!scrollHintEl) return;
+    scrollHintEl.style.opacity = window.scrollY > 60 ? '0' : '';
+    scrollHintEl.style.pointerEvents = window.scrollY > 60 ? 'none' : '';
+  }
+  checkScrollHint();
+  window.addEventListener('scroll', checkScrollHint, { passive: true });
+});
+
+/* ══ MOBILE STARFIELD — lightweight 2D canvas background for the flat
+   mobile intro layout, replacing the 3D scene with a similar twinkling-
+   star atmosphere at a fraction of the cost (no Three.js, no WebGL). ══ */
+onGateOpen(function(){
+  if (!isMobileLayout()) return; // desktop uses the Three.js 3D scene instead
+  const canvas = document.getElementById('intro-mobile-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  let stars = [];
+  const STAR_COUNT = 140;
+
+  function resize() {
+    const wrap = canvas.parentElement;
+    canvas.width = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+    // regenerate stars to fill the new size
+    stars = Array.from({ length: STAR_COUNT }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() < 0.08 ? 1.6 + Math.random() * 1.4 : 0.6 + Math.random() * 0.8, // a few standout-bright stars
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.5 + Math.random() * 1.2,
+    }));
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  let t = 0;
+  function frame() {
+    t += 0.016;
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // faint static noise speckle, echoing the desktop scene's grain
+    for (let i = 0; i < 40; i++) {
+      const nx = Math.random() * W, ny = Math.random() * H;
+      ctx.fillStyle = `rgba(126,184,247,${Math.random() * 0.04})`;
+      ctx.fillRect(nx, ny, 1, 1);
+    }
+
+    // twinkling stars
+    stars.forEach(s => {
+      const twinkle = 0.55 + 0.45 * Math.sin(t * s.speed + s.phase);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(180,210,255,${twinkle})`;
+      ctx.fill();
+    });
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+});
+
+/* ══ MOBILE NAV NODES — smooth-scroll the 5 flat circle nodes to their
+   target sections, matching desktop's click-to-navigate behavior. ══ */
+onGateOpen(function(){
+  if (!isMobileLayout()) return;
+  document.querySelectorAll('.intro-mobile-node').forEach(node => {
+    node.addEventListener('click', (e) => {
+      const href = node.getAttribute('href');
+      const target = href ? document.querySelector(href) : null;
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+});
+
+/* ══ THREE.JS INTRO SCENE ══ */
+onGateOpen(function(){
+  if (isMobileLayout()) return; // mobile uses the flat #intro-mobile layout instead — no 3D scene at all
+  const introCanvas = document.getElementById('intro-canvas');
+  if (!introCanvas || typeof THREE === 'undefined') return;
+
+  const renderer3d = new THREE.WebGLRenderer({ canvas: introCanvas, antialias: true, alpha: true });
+  renderer3d.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer3d.setClearColor(0x000000, 0);
+
+  const scene3d  = new THREE.Scene();
+  // camera from upper-right angle looking down at the orbital plane
+  const camera3d = new THREE.PerspectiveCamera(55, introCanvas.clientWidth / introCanvas.clientHeight, 0.1, 100);
+  camera3d.position.set(0, 3.25, 4.64);
+  camera3d.lookAt(0, 0, 0);
+
+  function resizeRenderer() {
+    const w = introCanvas.clientWidth, h = introCanvas.clientHeight;
+    renderer3d.setSize(w, h, false);
+    camera3d.aspect = w / h;
+    camera3d.updateProjectionMatrix();
+  }
+  resizeRenderer();
+
+  const NAV = [
+    { label: 'Intro',    href: '#intro-3d' },
+    { label: 'About',    href: '#about'    },
+    { label: 'Archive',  href: '#featured' },
+    { label: 'Gallery',  href: '#archive'  },
+    { label: 'Contact',  href: '#contact'  },
+  ];
+  const N = NAV.length;
+  const RADIUS = 2.0;
+  // reference distance from camera to orbit center, used as the "1x size" baseline
+  const referenceDist = camera3d.position.length();
+
+  // responsive overall scale — base reference width 1440px, higher base multiplier
+  let sceneScale = 1;
+  function computeScale() {
+    const w = introCanvas.clientWidth;
+    const h = introCanvas.clientHeight;
+    // base on the smaller dimension so the whole orbit+labels always fit,
+    // but allow a higher ceiling so it doesn't look tiny on large screens
+    const minDim = Math.min(w, h);
+    sceneScale = Math.max(0.55, Math.min(1.3, (minDim / 900) * 1.0)) * 0.90;
+  }
+  computeScale();
+
+  // pentagon in XZ plane (horizontal like a galaxy disk)
+  function pentagonPos(i) {
+    // offset chosen so that NAV index 1 (About) lands at angle = +Z
+    // (front-most, closest to camera) on initial load. Angle direction is
+    // mirrored (decreases as i increases) so that, from the camera's
+    // viewpoint with About in front, Intro lands on the left and Archive
+    // on the right — matching the requested layout.
+    const angle = -((i / N) * Math.PI * 2) + Math.PI * 0.9;
+    return new THREE.Vector3(Math.cos(angle) * RADIUS, 0, Math.sin(angle) * RADIUS);
+  }
+
+  const tiltGroup = new THREE.Group();
+  scene3d.add(tiltGroup);
+
+  // Base tilt at a reference aspect ratio; widen the tilt as the viewport
+  // gets wider so the orbit doesn't visually flatten out on ultra-wide screens.
+  const BASE_TILT_DEG = 30;
+  const REFERENCE_ASPECT = 16 / 9; // ~1.78, the aspect this tilt was tuned for
+  const TILT_GROWTH = 45; // extra degrees added per +1.0 aspect beyond reference
+
+  function updateTiltAngle() {
+    const aspect = camera3d.aspect;
+    const extra = Math.max(0, aspect - REFERENCE_ASPECT) * TILT_GROWTH;
+    const tiltDeg = Math.min(BASE_TILT_DEG + extra, 62); // cap so it never looks upside-down-ish
+    tiltGroup.rotation.z = THREE.MathUtils.degToRad(tiltDeg);
+  }
+  updateTiltAngle();
+
+  // Fixed pixel distance from the right edge — recalculated on every resize
+  // so the orbit's screen-space anchor stays a constant number of pixels
+  // away from the right edge, regardless of viewport width or aspect ratio.
+  const RIGHT_MARGIN_PX = 620;
+  let anchorScreenX = 0, anchorScreenY = 0;
+
+  // Exact inverse projection: finds the world-space (X, Y) at Z=0 that
+  // projects to the given target NDC coordinates, via 2D Newton-Raphson.
+  // Needed because this camera is tilted/off-axis, so X and Y are coupled
+  // in the projection — a simple linear NDC-to-world-offset approximation
+  // (the previous approach) accumulates several-pixel error, visible as
+  // the orbit nodes drifting from their intended anchor point.
+  const tmpSolve = new THREE.Vector3();
+  function solveWorldXYForNDC(targetNDCx, targetNDCy) {
+    function project(X, Y) {
+      tmpSolve.set(X, Y, 0).project(camera3d);
+      return [tmpSolve.x, tmpSolve.y];
+    }
+    let X = 0, Y = 0;
+    const eps = 0.0001;
+    for (let i = 0; i < 12; i++) {
+      const [fx, fy] = project(X, Y);
+      const errX = fx - targetNDCx, errY = fy - targetNDCy;
+      if (Math.abs(errX) < 1e-7 && Math.abs(errY) < 1e-7) break;
+      const [fx_dx, fy_dx] = project(X + eps, Y);
+      const [fx_dy, fy_dy] = project(X, Y + eps);
+      const J11 = (fx_dx - fx) / eps, J12 = (fx_dy - fx) / eps;
+      const J21 = (fy_dx - fy) / eps, J22 = (fy_dy - fy) / eps;
+      const det = J11 * J22 - J12 * J21;
+      X -= (errX * J22 - J12 * errY) / det;
+      Y -= (J11 * errY - errX * J21) / det;
+    }
+    return { x: X, y: Y };
+  }
+
+  function updateTiltGroupPosition() {
+    updateTiltAngle();
+    const w = introCanvas.clientWidth, h = introCanvas.clientHeight;
+
+    const targetScreenX = w - RIGHT_MARGIN_PX;
+    const targetScreenY = h * 0.44; // shift slightly upward on screen
+
+    const targetNDC_X = (targetScreenX / w) * 2 - 1;
+    const targetNDC_Y = 1 - (targetScreenY / h) * 2; // NDC Y is flipped vs screen Y
+
+    const solved = solveWorldXYForNDC(targetNDC_X, targetNDC_Y);
+    tiltGroup.position.x = solved.x;
+    tiltGroup.position.y = solved.y;
+
+    anchorScreenX = targetScreenX;
+    anchorScreenY = targetScreenY;
+  }
+  updateTiltGroupPosition();
+
+  const group = new THREE.Group();
+  tiltGroup.add(group);
+
+  // orbit ring — pentagon connecting the 5 nodes
+  const ringPts = [];
+  for (let i = 0; i <= N; i++) {
+    ringPts.push(pentagonPos(i % N));
+  }
+  group.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(ringPts),
+    new THREE.LineBasicMaterial({ color: 0x7eb8f7, transparent: true, opacity: 0.25 })
+  ));
+
+  // nodes
+  const nodeMeshes = [];
+  NAV.forEach((item, i) => {
+    const pos = pentagonPos(i);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x7eb8f7, transparent: true, opacity: 0.9 });
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), mat);
+    mesh.position.copy(pos);
+    group.add(mesh);
+    nodeMeshes.push(mesh);
+  });
+
+  // particles (ambient starfield) — twinkling, blue-to-pink colour shift
+  // spread across a wide volume so stars appear throughout the whole scene,
+  // not just clustered around the orbit
+  const pN = 546, pP = new Float32Array(pN * 3);
+  const pPhase = new Float32Array(pN);   // twinkle phase offset per star
+  const pSpeed = new Float32Array(pN);   // twinkle speed per star
+  const pHueSeed = new Float32Array(pN); // colour-cycle offset per star
+  const pBright = new Float32Array(pN);  // brightness/size multiplier — a few standout stars
+  for (let i = 0; i < pN; i++) {
+    // wide box spread instead of a tight ring around the orbit
+    pP[i*3]   = (Math.random() - 0.5) * 16;   // X: wide horizontal spread
+    pP[i*3+1] = (Math.random() - 0.5) * 9;    // Y: vertical spread
+    pP[i*3+2] = (Math.random() - 0.5) * 12;   // Z: depth spread
+    pPhase[i]   = Math.random() * Math.PI * 2;
+    pSpeed[i]   = 0.6 + Math.random() * 1.4;
+    pHueSeed[i] = Math.random() * Math.PI * 2;
+    // ~6% of stars are standout-bright, the rest are normal
+    pBright[i] = Math.random() < 0.06 ? 2.6 + Math.random() * 1.6 : 1.0;
+  }
+  const pGeo3 = new THREE.BufferGeometry();
+  pGeo3.setAttribute('position', new THREE.BufferAttribute(pP, 3));
+  pGeo3.setAttribute('aPhase',   new THREE.BufferAttribute(pPhase, 1));
+  pGeo3.setAttribute('aSpeed',   new THREE.BufferAttribute(pSpeed, 1));
+  pGeo3.setAttribute('aHueSeed', new THREE.BufferAttribute(pHueSeed, 1));
+  pGeo3.setAttribute('aBright',  new THREE.BufferAttribute(pBright, 1));
+
+  const starMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      attribute float aPhase;
+      attribute float aSpeed;
+      attribute float aHueSeed;
+      attribute float aBright;
+      uniform float uTime;
+      varying float vTwinkle;
+      varying float vHue;
+      varying float vDepth;
+      varying float vBright;
+      varying float vNear;
+      void main() {
+        vTwinkle = 0.75 + 0.25 * (0.5 + 0.5 * sin(uTime * aSpeed + aPhase));
+        vHue = 0.5 + 0.5 * sin(uTime * 0.35 + aHueSeed);
+        vBright = aBright;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        float dist = -mvPosition.z;
+        // depth factor: closer stars read near 1.0 (bright/large), far stars fall toward 0.2
+        vDepth = clamp(1.0 - (dist - 3.0) / 14.0, 0.15, 1.0);
+        // hide stars that get too close to the camera (large blurry blobs)
+        float NEAR_CUTOFF = 2.2;
+        vNear = step(NEAR_CUTOFF, dist); // 0 if too close, 1 otherwise
+        gl_PointSize = (0.35 + 0.4 * vTwinkle * vDepth) * aBright * (65.0 / dist) * vNear;
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      varying float vTwinkle;
+      varying float vHue;
+      varying float vDepth;
+      varying float vBright;
+      void main() {
+        vec2 c = gl_PointCoord - vec2(0.5);
+        float d = length(c) * 2.0; // 0 at centre, 1 at edge
+
+        // sharp bright core that falls off fast, plus a faint soft glow halo
+        float core = 1.0 - smoothstep(0.0, 0.35, d);
+        core = pow(core, 2.2);
+        // standout stars get a wider, stronger glow halo
+        float glowRadius = mix(1.0, 1.0, step(1.5, vBright));
+        float glowStrength = mix(0.25, 0.5, smoothstep(1.0, 3.5, vBright));
+        float glow = (1.0 - smoothstep(0.0, glowRadius, d)) * glowStrength;
+        float shape = clamp(core + glow, 0.0, 1.0);
+        if (shape < 0.02) discard;
+
+        float alpha = shape * vTwinkle * (0.8 + 0.85 * vDepth);
+
+        // colour blend: blue -> pink/purple (more saturated than before)
+        vec3 blue = vec3(0.25, 0.62, 1.0);
+        vec3 pink = vec3(0.95, 0.42, 1.0);
+        vec3 col = mix(blue, pink, vHue);
+        // boost toward white at the very centre for a bright core
+        col = mix(col, vec3(1.0), core * 0.7);
+        // standout stars get an extra white boost overall
+        col = mix(col, vec3(1.0), smoothstep(1.0, 3.5, vBright) * 0.35);
+
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+  });
+
+  const starPoints = new THREE.Points(pGeo3, starMat);
+  starPoints.renderOrder = 1; // draw after the skybox so stars are never dimmed by it
+  // kept as a sibling of tiltGroup (not a child) so the drag-parallax tilt
+  // applied to scene3d does NOT affect the starfield — only the orbit springs back
+  scene3d.add(starPoints);
+
+  // ── procedural galaxy skybox ──
+  // a large inverted sphere with a generated nebula/milky-way band texture,
+  // sitting behind everything to give the starfield a sense of a galaxy backdrop
+  let galaxySkybox;
+  (function addGalaxySkybox(){
+    // particle-based starfield backdrop — mostly soft ambient stars, with a
+    // handful of very subtle, loose clusters scattered around. True 3D
+    // points on a sphere shell, no UV/texture, so there's no seam possible.
+    const SKY_RADIUS = 55;
+    const CLUSTER_COUNT = 13;
+    const STARS_PER_CLUSTER = 23;
+    const AMBIENT_STARS = 2080;
+
+    const clusterColors = [
+      [126,184,247], // blue
+      [139,156,244], // indigo
+      [178,140,230], // violet
+      [228,138,255], // pink
+    ];
+
+    function randomOnSphere(radius) {
+      const u = Math.random(), v = Math.random();
+      const theta = 2 * Math.PI * u;
+      const phi = Math.acos(2 * v - 1);
+      return new THREE.Vector3(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.sin(phi) * Math.sin(theta),
+        radius * Math.cos(phi)
+      );
+    }
+
+    const positions = [];
+    const colors = [];
+    const sizes = [];
+
+    // very loose, faint clusters — wide spread, low density, soft colour
+    for (let cI = 0; cI < CLUSTER_COUNT; cI++) {
+      const center = randomOnSphere(SKY_RADIUS);
+      const [cr, cg, cb] = clusterColors[Math.floor(Math.random() * clusterColors.length)];
+      const spread = 6 + Math.random() * 7; // wide spread avoids a tight "blob" look
+
+      for (let i = 0; i < STARS_PER_CLUSTER; i++) {
+        // bias toward the centre with a soft falloff (not uniform cube jitter)
+        const r = Math.pow(Math.random(), 1.8) * spread;
+        const dir = new THREE.Vector3(
+          (Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)
+        ).normalize();
+        const p = center.clone().add(dir.multiplyScalar(r)).normalize().multiplyScalar(SKY_RADIUS);
+        positions.push(p.x, p.y, p.z);
+
+        // fade out toward the edge of the cluster, keep colour subtle
+        const edgeFade = 1 - (r / spread);
+        const fade = 0.45 + edgeFade * 0.55;
+        colors.push((cr/255) * fade, (cg/255) * fade, (cb/255) * fade);
+        sizes.push(0.4 + Math.random() * 0.9);
+      }
+    }
+
+    // ambient stars — the dominant visual element, soft white/blue, evenly spread
+    for (let i = 0; i < AMBIENT_STARS; i++) {
+      const p = randomOnSphere(SKY_RADIUS);
+      positions.push(p.x, p.y, p.z);
+      const b = 0.65 + Math.random() * 0.35;
+      colors.push(b * 0.88, b * 0.94, b);
+      sizes.push(0.3 + Math.random() * 0.45);
+    }
+
+    const skyGeo = new THREE.BufferGeometry();
+    skyGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    skyGeo.setAttribute('color',    new THREE.Float32BufferAttribute(colors, 3));
+    skyGeo.setAttribute('aSize',    new THREE.Float32BufferAttribute(sizes, 1));
+
+    const skyMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      vertexColors: true,
+      uniforms: {},
+      vertexShader: `
+        attribute float aSize;
+        varying vec3 vColor;
+        void main() {
+          vColor = color;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = aSize * (300.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        void main() {
+          vec2 c = gl_PointCoord - vec2(0.5);
+          float d = length(c) * 2.0;
+          float core = pow(1.0 - smoothstep(0.0, 0.4, d), 2.0);
+          float glow = (1.0 - smoothstep(0.0, 1.0, d)) * 0.3;
+          float shape = clamp(core + glow, 0.0, 1.0);
+          if (shape < 0.02) discard;
+          gl_FragColor = vec4(vColor, shape * 0.9);
+        }
+      `,
+    });
+
+    const skybox = new THREE.Points(skyGeo, skyMat);
+    skybox.renderOrder = -1; // always draw first/behind everything else
+    // sibling of tiltGroup (like starPoints) — given matching drag-driven rotation in the animate loop
+    scene3d.add(skybox);
+    galaxySkybox = skybox;
+  })();
+
+  // ── background nebula texture — a separate seamless noise-generated
+  // texture layer sitting behind the particle clusters, for soft ambient
+  // colour wash rather than additional distinct stars ──
+  let galaxyTexMesh;
+  (function addGalaxyTexture(){
+    const cw = 256, ch = 128; // kept small — this only needs to read as soft, low-frequency colour
+
+    function hash2(x, y) {
+      let h = x * 374761393 + y * 668265263;
+      h = (h ^ (h >> 13)) * 1274126177;
+      h = h ^ (h >> 16);
+      return ((h % 2147483647) / 2147483647 + 1) % 1;
+    }
+    function smooth(t) { return t * t * (3 - 2 * t); }
+    function valueNoise2D(x, y) {
+      const xi = Math.floor(x), yi = Math.floor(y);
+      const xf = smooth(x - xi), yf = smooth(y - yi);
+      const c00 = hash2(xi, yi),   c10 = hash2(xi+1, yi);
+      const c01 = hash2(xi, yi+1), c11 = hash2(xi+1, yi+1);
+      const x0 = c00 + (c10 - c00) * xf;
+      const x1 = c01 + (c11 - c01) * xf;
+      return x0 + (x1 - x0) * yf;
+    }
+    function fbm2D(x, y) {
+      let total = 0, amp = 0.5, freq = 1, sum = 0;
+      for (let o = 0; o < 3; o++) {
+        total += valueNoise2D(x*freq, y*freq) * amp;
+        sum += amp;
+        amp *= 0.5; freq *= 2.1;
+      }
+      return total / sum;
+    }
+    // seamless tileable noise via toroidal blending (matches edges exactly)
+    function tileableNoise(u, v, scale) {
+      const x = u * scale, y = v * scale;
+      const a = fbm2D(x, y);
+      const b = fbm2D(x - scale, y);
+      const c = fbm2D(x, y - scale);
+      const d = fbm2D(x - scale, y - scale);
+      return a*(1-u)*(1-v) + b*u*(1-v) + c*(1-u)*v + d*u*v;
+    }
+
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const gctx = c.getContext('2d');
+    const img = gctx.createImageData(cw, ch);
+
+    const palette = [
+      [4,6,15],     // matches site background — fades to "nothing"
+      [20,26,55],
+      [40,45,90],
+      [70,60,110],
+      [95,65,120],
+    ];
+    function paletteColor(t) {
+      const n = palette.length - 1;
+      const f = Math.max(0, Math.min(1, t)) * n;
+      const i = Math.floor(f), frac = f - i;
+      const a = palette[i], b = palette[Math.min(i+1, n)];
+      return [
+        a[0] + (b[0]-a[0])*frac,
+        a[1] + (b[1]-a[1])*frac,
+        a[2] + (b[2]-a[2])*frac,
+      ];
+    }
+
+    for (let py = 0; py < ch; py++) {
+      for (let px = 0; px < cw; px++) {
+        const u = px / cw, v = py / ch;
+        const n = tileableNoise(u, v, 3);
+        // remap so the bottom ~50% of noise values collapse to pure
+        // background (no colour at all) — only the upper half of the noise
+        // range shows any cloud colour, giving roughly half the canvas
+        // a flat black/background area instead of a uniform colour wash
+        const remapped = Math.max(0, (n - 0.45) / (1 - 0.45));
+        const [r, g, b] = paletteColor(remapped);
+        const idx = (py * cw + px) * 4;
+        img.data[idx] = r; img.data[idx+1] = g; img.data[idx+2] = b;
+        img.data[idx+3] = 255;
+      }
+    }
+    gctx.putImageData(img, 0, 0);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearFilter;
+
+    const geo = new THREE.SphereGeometry(58, 32, 20); // larger than the particle shell radius (55) so it sits behind
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: 0.65, // subtle — just a soft colour wash behind the stars
+      depthWrite: false,
+      depthTest: false,
+      fog: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = -2; // draw before the particle skybox so it sits furthest back
+    scene3d.add(mesh);
+    galaxyTexMesh = mesh;
+  })();
+
+  // DOM labels
+  const labelContainer = document.createElement('div');
+  labelContainer.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
+  document.getElementById('intro-3d').appendChild(labelContainer);
+
+  const tmpVec = new THREE.Vector3();
+  function projectToScreen(pos3d) {
+    tmpVec.copy(pos3d).project(camera3d);
+    return {
+      x: (tmpVec.x *  0.5 + 0.5) * introCanvas.clientWidth,
+      y: (tmpVec.y * -0.5 + 0.5) * introCanvas.clientHeight,
+    };
+  }
+
+  const labelEls = NAV.map((item, i) => {
+    const el = document.createElement('a');
+    el.href = item.href;
+    el.textContent = item.label;
+    el.style.cssText = `
+      position:absolute; transform:translate(-50%,-50%);
+      display:flex; align-items:center; justify-content:center;
+      width:180px; height:180px; border-radius:50%;
+      font-family:'Rajdhani',sans-serif;
+      font-size:1.422rem; font-weight:700; letter-spacing:0.15em; text-transform:uppercase;
+      text-align:center; line-height:1.3;
+      color:#7eb8f7; text-decoration:none; pointer-events:auto;
+      border:1px solid rgba(126,184,247,0.35);
+      background:
+        repeating-linear-gradient(to bottom, rgba(126,184,247,0.14) 0px, rgba(126,184,247,0.14) 2px, transparent 2px, transparent 5px),
+        #04060f;
+      background-clip: padding-box;
+      overflow: hidden;
+      backdrop-filter:blur(6px);
+      box-shadow: inset 0 0 24px rgba(126,184,247,0.18), inset 0 0 6px rgba(126,184,247,0.25);
+      animation: scanlineScroll 1.2s linear infinite;
+      transition:color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s;
+    `;
+    el.addEventListener('mouseenter', () => {
+      el.style.color = '#04060f';
+      el.style.borderColor = '#7eb8f7';
+      el.style.background =
+        'repeating-linear-gradient(to bottom, rgba(4,6,15,0.18) 0px, rgba(4,6,15,0.18) 2px, transparent 2px, transparent 5px), #7eb8f7';
+      el.style.boxShadow = '0 0 32px rgba(126,184,247,0.45), inset 0 0 24px rgba(4,6,15,0.18), inset 0 0 6px rgba(4,6,15,0.25)';
+      el.style.transform = 'translate(-50%,-50%) scale(1.25)';
+      el.style.zIndex = '10';
+      el.dataset.hovering = '1';
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.color = '#7eb8f7';
+      el.style.borderColor = 'rgba(126,184,247,0.35)';
+      el.style.background =
+        'repeating-linear-gradient(to bottom, rgba(126,184,247,0.14) 0px, rgba(126,184,247,0.14) 2px, transparent 2px, transparent 5px), #04060f';
+      el.style.boxShadow = 'inset 0 0 24px rgba(126,184,247,0.18), inset 0 0 6px rgba(126,184,247,0.25)';
+      el.style.transform = 'translate(-50%,-50%) scale(1)';
+      delete el.dataset.hovering;
+    });
+    labelContainer.appendChild(el);
+    return el;
+  });
+
+  // hide 3D node spheres — circular labels represent the nodes now
+  nodeMeshes.forEach(m => { m.material.opacity = 0; });
+
+  let isDragging = false, dragVelY = 0, lastDragX = 0;
+
+  // whole-scene parallax tilt while dragging — springs back to 0 on release
+  let dragStartX = 0, dragStartY = 0;
+  let sceneTiltTargetX = 0, sceneTiltTargetY = 0;
+  let sceneTiltX = 0, sceneTiltY = 0;
+  const SCENE_TILT_MAX_DEG_Y = 30; // horizontal drag -> Y rotation cap
+  const SCENE_TILT_MAX_DEG_X = 5;  // vertical drag -> X rotation cap (much more limited)
+  const SCENE_TILT_SENSITIVITY_X = 0.12; // horizontal drag -> Y rotation
+  const SCENE_TILT_SENSITIVITY_Y = 0.06; // vertical drag -> X rotation (lower sensitivity)
+
+  const introEl2 = document.getElementById('intro-3d');
+  introEl2.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    isDragging = true; lastDragX = e.clientX; dragVelY = 0;
+    dragStartX = e.clientX; dragStartY = e.clientY;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+
+    // safety check: if the primary mouse button isn't actually held down
+    // anymore (e.g. the user released it while the cursor was outside the
+    // browser window, so our mouseup listener never fired), stop dragging
+    // instead of continuing to spin indefinitely
+    if (e.buttons === 0) {
+      isDragging = false;
+      sceneTiltTargetX = 0;
+      sceneTiltTargetY = 0;
+      return;
+    }
+
+    dragVelY = (e.clientX - lastDragX) * 0.006;
+    lastDragX = e.clientX;
+
+    // compute parallax tilt target from total drag offset since mousedown
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const maxRadY = THREE.MathUtils.degToRad(SCENE_TILT_MAX_DEG_Y);
+    const maxRadX = THREE.MathUtils.degToRad(SCENE_TILT_MAX_DEG_X);
+    sceneTiltTargetY = THREE.MathUtils.clamp(
+      THREE.MathUtils.degToRad(dx * SCENE_TILT_SENSITIVITY_X), -maxRadY, maxRadY
+    );
+    sceneTiltTargetX = THREE.MathUtils.clamp(
+      THREE.MathUtils.degToRad(dy * SCENE_TILT_SENSITIVITY_Y), -maxRadX, maxRadX
+    );
+  });
+  function stopDragging() {
+    isDragging = false;
+    sceneTiltTargetX = 0;
+    sceneTiltTargetY = 0;
+  }
+  window.addEventListener('mouseup', stopDragging);
+  // extra safety nets: mouse leaving the document, or the window/tab
+  // losing focus entirely, both also force-stop the drag
+  document.addEventListener('mouseleave', stopDragging);
+  window.addEventListener('blur', stopDragging);
+
+  // base label size in px at sceneScale = 1
+  const BASE_LABEL_SIZE = 220;
+
+  function updateLabelSizes() {
+    // size is now set per-frame in animateIntro based on depth; this just stores the base px
+  }
+
+  function resizeIntro() {
+    resizeRenderer();
+    computeScale();
+    group.scale.setScalar(sceneScale);
+    updateTiltGroupPosition();
+    updateLabelSizes();
+    clampScaleToBounds();
+  }
+
+  // shrink sceneScale further if any node+label would overflow the container
+  function clampScaleToBounds() {
+    scene3d.updateMatrixWorld(true);
+    const w = introCanvas.clientWidth, h = introCanvas.clientHeight;
+    // use the same anchor that positions the star map — keeps both calculations consistent
+    const anchorX = anchorScreenX;
+    const anchorY = anchorScreenY;
+    let maxOverflow = 1;
+    nodeMeshes.forEach(m => {
+      const worldPos = m.getWorldPosition(new THREE.Vector3());
+      const p = projectToScreen(worldPos);
+      const dist3d = camera3d.position.distanceTo(worldPos);
+      const distFactor = referenceDist / dist3d;
+      const half = (BASE_LABEL_SIZE * sceneScale * distFactor) / 2;
+      const overflowX = Math.max(0, (p.x + half) - w, half - p.x);
+      const overflowY = Math.max(0, (p.y + half) - h, half - p.y);
+      const overflow = Math.max(overflowX, overflowY);
+      if (overflow > 0) {
+        const dist = Math.max(Math.abs(p.x - anchorX), Math.abs(p.y - anchorY)) + half;
+        // available radius = distance from anchor to the screen edge THIS NODE is overflowing toward,
+        // not a blanket min() that gets bottlenecked by how close the anchor sits to the right edge
+        let avail;
+        if (overflowX > 0 && p.x > anchorX) avail = w - anchorX + half; // overflowing right
+        else if (overflowX > 0)             avail = anchorX + half;     // overflowing left
+        else if (p.y > anchorY)             avail = h - anchorY + half; // overflowing bottom
+        else                                avail = anchorY + half;     // overflowing top
+        const factor = avail / dist;
+        if (factor < maxOverflow) maxOverflow = factor;
+      }
+    });
+    if (maxOverflow < 1) {
+      sceneScale *= maxOverflow * 0.96; // small safety margin
+      group.scale.setScalar(sceneScale);
+      updateLabelSizes();
+    }
+  }
+
+  resizeIntro();
+  // re-run after layout settles (fonts/images can shift clientWidth/Height on first paint)
+  requestAnimationFrame(() => requestAnimationFrame(resizeIntro));
+  setTimeout(resizeIntro, 150);
+  setTimeout(resizeIntro, 500);
+  window.addEventListener('resize', resizeIntro);
+
+  const clk3 = new THREE.Clock();
+  function animateIntro() {
+    requestAnimationFrame(animateIntro);
+    const introEl = document.getElementById('intro-3d');
+    if (introEl && window.scrollY > (introEl.offsetTop + introEl.offsetHeight * 1.2)) return;
+    const t = clk3.getElapsedTime();
+    starMat.uniforms.uTime.value = t;
+
+    // ease orbit tilt toward target (capped per-axis), springs back to 0 on release
+    // applied to tiltGroup (not scene3d) so the starfield siblings stay unaffected
+    sceneTiltX += (sceneTiltTargetX - sceneTiltX) * 0.1;
+    sceneTiltY += (sceneTiltTargetY - sceneTiltY) * 0.1;
+    const maxRadY2 = THREE.MathUtils.degToRad(SCENE_TILT_MAX_DEG_Y);
+    const maxRadX2 = THREE.MathUtils.degToRad(SCENE_TILT_MAX_DEG_X);
+    tiltGroup.rotation.x = THREE.MathUtils.clamp(sceneTiltX, -maxRadX2, maxRadX2);
+    tiltGroup.rotation.y = THREE.MathUtils.clamp(sceneTiltY, -maxRadY2, maxRadY2);
+
+    if (!isDragging) dragVelY *= 0.93;
+    group.rotation.y += isDragging ? dragVelY : dragVelY - 0.00015;
+    starPoints.rotation.y += (isDragging ? dragVelY : dragVelY - 0.00015) * 0.15; // low-sensitivity drag influence
+    if (galaxySkybox) {
+      galaxySkybox.rotation.y += (isDragging ? dragVelY : dragVelY - 0.00015) * 0.15;
+    }
+    if (galaxyTexMesh) {
+      galaxyTexMesh.rotation.y += (isDragging ? dragVelY : dragVelY - 0.00015) * 0.15;
+    }
+
+    // update labels — size and position scale by distance from camera
+    labelEls.forEach((el, i) => {
+      const worldPos = nodeMeshes[i].getWorldPosition(new THREE.Vector3());
+      const s = projectToScreen(worldPos);
+      el.style.left = s.x + 'px';
+      el.style.top  = s.y + 'px';
+      el.style.opacity = Math.max(0.25, Math.min(1, tmpVec.z * 0.5 + 0.75)).toFixed(2);
+
+      // distance factor: closer to camera -> larger, farther -> smaller
+      const dist = camera3d.position.distanceTo(worldPos);
+      // referenceDist ~ distance to a node at the orbit's center depth
+      const distFactor = referenceDist / dist;
+      const px = Math.round(BASE_LABEL_SIZE * sceneScale * distFactor);
+      el.style.width  = px + 'px';
+      el.style.height = px + 'px';
+
+      // depth-based stacking: nodes closer than centre depth (tmpVec.z < 0)
+      // sit above the title (z-index 5); farther nodes sit behind it
+      if (!el.dataset.hovering) {
+        // compare actual 3D distance to camera against the reference (orbit-centre) distance
+        const inFront = dist < referenceDist;
+        el.style.zIndex = inFront ? '6' : '3';
+      }
+    });
+
+    renderer3d.render(scene3d, camera3d);
+  }
+  animateIntro();
+});
+</script>
+</body>
+</html>
